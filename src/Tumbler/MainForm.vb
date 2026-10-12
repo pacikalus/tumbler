@@ -956,11 +956,9 @@ Public Class MainForm
     End Sub
 
     Private Sub ShowAbout()
-        MessageBox.Show(Me,
-            "Tumbler 1.0" & vbCrLf & vbCrLf &
-            "View PDFs, delete, rotate and insert pages, add comments, lines and highlights." & vbCrLf & vbCrLf &
-            "Built with PDFsharp (MIT) for editing and PDFium via Docnet.Core (BSD-3 / MIT) for display.",
-            "About Tumbler", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Using dlg As New AboutDialog()
+            dlg.ShowDialog(Me)
+        End Using
     End Sub
 
 #End Region

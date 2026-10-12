@@ -28,6 +28,7 @@
   <ItemGroup>
     <!-- Also embedded so the window and taskbar show the same icon as the .exe. -->
     <EmbeddedResource Include="Tumbler.ico" LogicalName="Tumbler.ico" />
+    <EmbeddedResource Include="..\..\assets\logo.png" LogicalName="logo.png" Link="logo.png" />
   </ItemGroup>
 
   <ItemGroup>
