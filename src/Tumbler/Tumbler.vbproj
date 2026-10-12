@@ -29,6 +29,7 @@
     <!-- Also embedded so the window and taskbar show the same icon as the .exe. -->
     <EmbeddedResource Include="Tumbler.ico" LogicalName="Tumbler.ico" />
     <EmbeddedResource Include="..\..\assets\logo.png" LogicalName="logo.png" Link="logo.png" />
+    <EmbeddedResource Include="..\..\assets\pacikalus.png" LogicalName="pacikalus.png" Link="pacikalus.png" />
     <!-- Toolbar pictures, one strip per size (drawn by tools\make-toolbar-icons.py). -->
     <EmbeddedResource Include="Icons\toolbar-*.png" LogicalName="%(Filename)%(Extension)" />
   </ItemGroup>

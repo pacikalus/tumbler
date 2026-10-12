@@ -8,7 +8,7 @@
   unless you install Tumbler-signing.cer on them too (see README).
 
   Run it once, in a normal (not admin) PowerShell window:
-      .\tools\make-test-certificate.ps1 -Name "Mike"
+      .\tools\make-test-certificate.ps1 -Name "Pacikalus"
   Windows will ask you to confirm adding the certificate. Click Yes.
 #>
 param(

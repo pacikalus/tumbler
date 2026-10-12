@@ -221,11 +221,11 @@ Public Class EditorTests
     <Fact>
     Public Sub Note_AddEditDelete()
         Dim ed = OpenSample()
-        ed.AddNote(0, New PointF(300, 200), "Check this número", Color.Red, "Mike")
+        ed.AddNote(0, New PointF(300, 200), "Check this número", Color.Red, "Pacikalus")
         Dim a = ed.Pages(0).Annotations.Single()
         Assert.Equal(AnnotationKind.Note, a.Kind)
         Assert.Equal("Check this número", a.Contents)
-        Assert.Equal("Mike", a.Author)
+        Assert.Equal("Pacikalus", a.Author)
         Assert.Equal(Color.Red.ToArgb(), a.Color.ToArgb())
         Dim disp = ed.Pages(0).Geometry.ToDisplayRect(a.Rect)
         Assert.Equal(300, disp.Left, 1)
@@ -243,7 +243,7 @@ Public Class EditorTests
     <Fact>
     Public Sub Comment_IsVisibleOnPage_AndResizesWhenEdited()
         Dim ed = OpenSample()
-        ed.AddComment(0, New PointF(300, 250), "Please check this paragraph before sending.", Color.Blue, 11, "Mike")
+        ed.AddComment(0, New PointF(300, 250), "Please check this paragraph before sending.", Color.Blue, 11, "Pacikalus")
         Dim a = ed.Pages(0).Annotations.Single()
         Assert.Equal(AnnotationKind.Comment, a.Kind)
         Assert.Equal(Color.Blue.ToArgb(), a.Color.ToArgb())
@@ -287,7 +287,7 @@ Public Class EditorTests
     Public Sub Line_IsDrawnWhereDragged_OnRotatedPages(page As Integer)
         Dim ed = OpenSample("rotated.pdf")
         Dim a As New PointF(100, 120), b As New PointF(260, 200)
-        ed.AddLine(page, a, b, Color.Red, 4, "Mike")
+        ed.AddLine(page, a, b, Color.Red, 4, "Pacikalus")
         Dim line = ed.Pages(page).Annotations.Single()
         Assert.Equal(AnnotationKind.Line, line.Kind)
         Assert.Equal("Line", line.KindName)
@@ -319,9 +319,9 @@ Public Class EditorTests
     <Fact>
     Public Sub CopiedComment_PastesOnAnotherPage_WithSameTextAndColour()
         Dim ed = OpenSample("rotated.pdf")
-        ed.AddComment(0, New PointF(100, 150), "Check the total", Color.Purple, 14, "Mike")
+        ed.AddComment(0, New PointF(100, 150), "Check the total", Color.Purple, 14, "Pacikalus")
         Dim clip = AnnotationClip.From(ed.Pages(0).Annotations.Single())
-        ed.PasteAnnotation(clip, 1, New PointF(50, 60), "Mike")   ' page 2 is turned 90°
+        ed.PasteAnnotation(clip, 1, New PointF(50, 60), "Pacikalus")   ' page 2 is turned 90°
         Dim copy = ed.Pages(1).Annotations.Single()
         Assert.Equal(AnnotationKind.Comment, copy.Kind)
         Assert.Equal("Check the total", copy.Contents)
@@ -335,11 +335,11 @@ Public Class EditorTests
     <Fact>
     Public Sub CopiedLine_KeepsItsShape_AndStaysOnThePage()
         Dim ed = OpenSample()
-        ed.AddLine(0, New PointF(100, 100), New PointF(300, 160), Color.Green, 4, "Mike")
+        ed.AddLine(0, New PointF(100, 100), New PointF(300, 160), Color.Green, 4, "Pacikalus")
         Dim clip = AnnotationClip.From(ed.Pages(0).Annotations.Single())
         Assert.Equal(New RectangleF(100, 100, 200, 60), clip.Bounds)
 
-        ed.PasteAnnotation(clip, 0, New PointF(200, 400), "Mike")
+        ed.PasteAnnotation(clip, 0, New PointF(200, 400), "Pacikalus")
         Dim copy = ed.Pages(0).Annotations.Last()
         Assert.Equal(AnnotationKind.Line, copy.Kind)
         Assert.Equal(4, copy.LineWidth, 2)
@@ -349,7 +349,7 @@ Public Class EditorTests
         Assert.Equal(460, copy.LineEnd.Y, 1)
 
         ' Pasted past the right edge of a 612-point-wide page: slid back so all of it shows.
-        ed.PasteAnnotation(clip, 0, New PointF(580, 100), "Mike")
+        ed.PasteAnnotation(clip, 0, New PointF(580, 100), "Pacikalus")
         copy = ed.Pages(0).Annotations.Last()
         Assert.Equal(612, Math.Max(copy.LineStart.X, copy.LineEnd.X), 1)
     End Sub
@@ -361,7 +361,7 @@ Public Class EditorTests
     <InlineData(3)>
     Public Sub Comment_CanBeDraggedToANewPlace_OnRotatedPages(page As Integer)
         Dim ed = OpenSample("rotated.pdf")
-        ed.AddComment(page, New PointF(100, 100), "Move me", Color.Blue, 14, "Mike")
+        ed.AddComment(page, New PointF(100, 100), "Move me", Color.Blue, 14, "Pacikalus")
         Dim before = ed.Pages(page).Annotations.Single()
         ed.MoveAnnotation(before, 80, 150)
         Dim after = ed.Pages(page).Annotations.Single()
@@ -391,8 +391,8 @@ Public Class EditorTests
     <Fact>
     Public Sub Render_CanLeaveOutOneAnnotation_ForDragging()
         Dim ed = OpenSample()
-        ed.AddComment(0, New PointF(100, 100), "Dragged", Color.Blue, 14, "Mike")
-        ed.AddComment(0, New PointF(100, 300), "Stays", Color.Blue, 14, "Mike")
+        ed.AddComment(0, New PointF(100, 100), "Dragged", Color.Blue, 14, "Pacikalus")
+        ed.AddComment(0, New PointF(100, 300), "Stays", Color.Blue, 14, "Pacikalus")
         Dim dragged = ed.Pages(0).Annotations.First(Function(a) a.Contents = "Dragged")
         Dim stays = ed.Pages(0).Annotations.First(Function(a) a.Contents = "Stays")
         Using r As New PdfRenderer(ed.Bytes)
@@ -418,7 +418,7 @@ Public Class EditorTests
     <Fact>
     Public Sub Line_MovesWithBothEnds_AndStopsAtThePageEdge()
         Dim ed = OpenSample()
-        ed.AddLine(0, New PointF(100, 100), New PointF(200, 150), Color.Red, 2, "Mike")
+        ed.AddLine(0, New PointF(100, 100), New PointF(200, 150), Color.Red, 2, "Pacikalus")
         Dim line = ed.Pages(0).Annotations.Single()
         ed.MoveAnnotation(line, 50, -20)
         line = ed.Pages(0).Annotations.Single()
@@ -441,7 +441,7 @@ Public Class EditorTests
     <Fact>
     Public Sub Highlights_CannotBeMoved()
         Dim ed = OpenSample()
-        ed.AddHighlight(0, {TextSelection.AreaQuad(New RectangleF(72, 100, 100, 20))}, Color.Yellow, "Mike")
+        ed.AddHighlight(0, {TextSelection.AreaQuad(New RectangleF(72, 100, 100, 20))}, Color.Yellow, "Pacikalus")
         Dim h = ed.Pages(0).Annotations.Single()
         Assert.False(PdfEditor.CanMove(h))
         Assert.Throws(Of InvalidOperationException)(Sub() ed.MoveAnnotation(h, 10, 10))
@@ -450,7 +450,7 @@ Public Class EditorTests
     <Fact>
     Public Sub Highlights_CannotBeCopied()
         Dim ed = OpenSample()
-        ed.AddHighlight(0, {TextSelection.AreaQuad(New RectangleF(72, 100, 100, 20))}, Color.Yellow, "Mike")
+        ed.AddHighlight(0, {TextSelection.AreaQuad(New RectangleF(72, 100, 100, 20))}, Color.Yellow, "Pacikalus")
         Dim h = ed.Pages(0).Annotations.Single()
         Assert.False(AnnotationClip.CanCopy(h))
         Assert.Throws(Of InvalidOperationException)(Function() AnnotationClip.From(h))
@@ -459,7 +459,7 @@ Public Class EditorTests
     <Fact>
     Public Sub Comment_NearPageEdge_StaysOnPage()
         Dim ed = OpenSample("rotated.pdf")
-        ed.AddComment(1, New PointF(780, 600), "Edge of a rotated page", Color.Red, 12, "Mike")
+        ed.AddComment(1, New PointF(780, 600), "Edge of a rotated page", Color.Red, 12, "Pacikalus")
         Dim a = ed.Pages(1).Annotations.Single()
         Dim geo = ed.Pages(1).Geometry
         Assert.True(a.DisplayRect.Right <= geo.DisplayWidth + 0.5)
@@ -469,7 +469,7 @@ Public Class EditorTests
     <Fact>
     Public Sub TextBox_KeepsColourAndFontSize()
         Dim ed = OpenSample()
-        ed.AddTextBox(1, New RectangleF(72, 400, 200, 60), "Hello (world) \ text that wraps onto a second line", Color.Green, 14, "Mike")
+        ed.AddTextBox(1, New RectangleF(72, 400, 200, 60), "Hello (world) \ text that wraps onto a second line", Color.Green, 14, "Pacikalus")
         Dim a = ed.Pages(1).Annotations.Single()
         Assert.Equal(AnnotationKind.TextBox, a.Kind)
         Assert.Equal(14, a.FontSize, 1)
@@ -490,7 +490,7 @@ Public Class EditorTests
             quads = TextSelection.LineQuads(r.GetCharacters(0), hit.First, hit.Last)
         End Using
         Assert.Single(quads)
-        ed.AddHighlight(0, quads, Color.Yellow, "Mike")
+        ed.AddHighlight(0, quads, Color.Yellow, "Pacikalus")
         Dim a = ed.Pages(0).Annotations.Single()
         Assert.Equal(AnnotationKind.Highlight, a.Kind)
         Assert.InRange(a.Rect.Y1, 644, 650)
@@ -528,9 +528,9 @@ Public Class EditorTests
             Dim hit = FindPhrase(r, page, "quick brown")
             Dim quads = TextSelection.LineQuads(r.GetCharacters(page), hit.First, hit.Last)
             Assert.Single(quads)
-            ed.AddHighlight(page, quads, Color.Orange, "Mike")
-            ed.AddNote(page, New PointF(50, 50), "Note on rotated page", Color.Blue, "Mike")
-            ed.AddTextBox(page, New RectangleF(60, 120, 220, 50), "Upright text box", Color.Red, 12, "Mike")
+            ed.AddHighlight(page, quads, Color.Orange, "Pacikalus")
+            ed.AddNote(page, New PointF(50, 50), "Note on rotated page", Color.Blue, "Pacikalus")
+            ed.AddTextBox(page, New RectangleF(60, 120, 220, 50), "Upright text box", Color.Red, 12, "Pacikalus")
         End Using
         Dim n = ed.Pages(page).Annotations.First(Function(x) x.Kind = AnnotationKind.Note)
         Assert.Equal(50, n.DisplayRect.Left, 1)
@@ -551,7 +551,7 @@ Public Class EditorTests
     <Fact>
     Public Sub SavedFile_ReopensWithAnnotations()
         Dim ed = OpenSample()
-        ed.AddNote(0, New PointF(400, 100), "Saved note", Color.Magenta, "Mike")
+        ed.AddNote(0, New PointF(400, 100), "Saved note", Color.Magenta, "Pacikalus")
         ed.RotatePages({0}, 90)
         ed.InsertPagesFrom(Fixture("other.pdf"), {0}, ed.PageCount)
         Dim outPath = Path.Combine(Path.GetTempPath(), $"tumbler-test-{Guid.NewGuid():N}.pdf")
@@ -578,7 +578,7 @@ Public Class EditorTests
     Public Sub ImportedPages_KeepTheirComments()
         ' Make a source file that has a note, then insert its page.
         Dim src = OpenSample("other.pdf")
-        src.AddNote(0, New PointF(100, 100), "From the other file", Color.Green, "Mike")
+        src.AddNote(0, New PointF(100, 100), "From the other file", Color.Green, "Pacikalus")
         Dim srcPath = Path.Combine(Path.GetTempPath(), $"tumbler-src-{Guid.NewGuid():N}.pdf")
         Try
             src.SaveAs(srcPath)

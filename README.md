@@ -124,7 +124,12 @@ The UI is built in code rather than with the Designer, so every form is a plain 
 
 ## Authors
 
-Mike Rabinovitch ([pacikalus@gmail.com](mailto:pacikalus@gmail.com)), with [Claude](https://claude.ai) by Anthropic as co-author.
+<img src="assets/pacikalus.png" alt="Pacikalus" width="72" align="left" />
+
+**Pacikalus** ([pacikalus@gmail.com](mailto:pacikalus@gmail.com)), with [Claude](https://claude.ai) by Anthropic as co-author.
+*Pa cik alus?* is Latvian for "How much is the beer?"
+
+<br clear="left" />
 
 ## License
 

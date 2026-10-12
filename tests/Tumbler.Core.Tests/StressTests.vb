@@ -24,7 +24,7 @@ Public Class StressTests
             Dim b = TextSelection.HitTest(chars, New PointF(200 + round Mod 10 * 5, 165))
             Dim quads = TextSelection.LineQuads(chars, a, b)
             Assert.Equal(2, quads.Count)
-            ed.AddHighlight(0, quads, colors(round Mod 4), "Mike")
+            ed.AddHighlight(0, quads, colors(round Mod 4), "Pacikalus")
             Dim old = renderer
             renderer = New PdfRenderer(ed.Bytes)
             renderer.Render(0, 1.33)
