@@ -62,6 +62,16 @@ try {
     Write-Host ""
     Write-Host "All done: $setup" -ForegroundColor Green
     Write-Host "Give people this one file. It installs Tumbler with everything it needs."
+
+    # Publishing puts the setup on GitHub as release v<version>. Every installed
+    # Tumbler checks for the newest release and offers to update itself.
+    Write-Host ""
+    $answer = Read-Host "Publish Tumbler $version on GitHub so installed copies can update? (Y/N)"
+    if ($answer -match '^[Yy]') {
+        & (Join-Path $PSScriptRoot 'publish-release.ps1') -Version $version -Setup $setup
+    } else {
+        Write-Host "Not published. Run tools\publish-release.ps1 later to publish it." -ForegroundColor Yellow
+    }
     Start-Process explorer.exe "/select,`"$setup`""
 }
 catch {

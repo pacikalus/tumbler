@@ -73,3 +73,5 @@ Root: HKA; Subkey: "Software\Classes\Applications\Tumbler.exe\shell\open\command
 
 [Run]
 Filename: "{app}\Tumbler.exe"; Description: "{cm:LaunchProgram,Tumbler}"; Flags: nowait postinstall skipifsilent
+; Tumbler's own updater runs this setup silently; open Tumbler again afterwards.
+Filename: "{app}\Tumbler.exe"; Flags: nowait runasoriginaluser; Check: WizardSilent

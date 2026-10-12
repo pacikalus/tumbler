@@ -102,6 +102,9 @@ Public Class AppSettings
     Public Property CommentFontSize As Double = 11
     Public Property LineColor As Integer = Palette.ColorByName("Red").ToArgb()
     Public Property LineWidth As Double = 2
+    Public Property CheckForUpdates As Boolean = True
+    Public Property LastUpdateCheck As DateTime = DateTime.MinValue
+    Public Property SkippedVersion As String = ""
 
     Private Shared ReadOnly FilePath As String =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Tumbler", "settings.json")

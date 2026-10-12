@@ -167,7 +167,17 @@ Public Class MainForm
             Item("Your &name on comments…", AddressOf ChangeAuthor, needsDoc:=False)})
 
         Dim help As New ToolStripMenuItem("&Help")
-        help.DropDownItems.Add(Item("&About Tumbler", AddressOf ShowAbout, needsDoc:=False))
+        Dim autoCheck As New ToolStripMenuItem("Check for updates when Tumbler &starts") With {
+            .Checked = _settings.CheckForUpdates, .CheckOnClick = True}
+        AddHandler autoCheck.CheckedChanged, Sub()
+                                                 _settings.CheckForUpdates = autoCheck.Checked
+                                                 _settings.Save()
+                                             End Sub
+        help.DropDownItems.AddRange({
+            Item("Check for &updates…", Sub() CheckForUpdates(manual:=True), needsDoc:=False),
+            autoCheck,
+            New ToolStripSeparator(),
+            Item("&About Tumbler", AddressOf ShowAbout, needsDoc:=False)})
 
         _menu.Items.AddRange({file, edit, view, pages, comments, help})
     End Sub
@@ -357,6 +367,79 @@ Public Class MainForm
     Protected Overrides Sub OnShown(e As EventArgs)
         MyBase.OnShown(e)
         If Not String.IsNullOrEmpty(FileToOpenOnStart) Then OpenDocument(FileToOpenOnStart)
+        ' At most once a day, quietly; problems (offline, GitHub down) are not shown.
+        If _settings.CheckForUpdates AndAlso (DateTime.UtcNow - _settings.LastUpdateCheck).TotalHours >= 20 Then
+            CheckForUpdates(manual:=False)
+        End If
+    End Sub
+
+#End Region
+
+#Region "Updates"
+
+    Private _checkingForUpdates As Boolean
+    Private _closingForUpdate As Boolean
+
+    ''' <summary>
+    ''' Asks GitHub for a newer Tumbler. From the menu (manual) it always says what it found;
+    ''' at startup it stays silent unless there is a version the person hasn't skipped.
+    ''' </summary>
+    Private Async Sub CheckForUpdates(manual As Boolean)
+        If _checkingForUpdates Then Return
+        _checkingForUpdates = True
+        Dim checker As New UpdateChecker(Updates.CurrentVersion)
+        Try
+            If manual Then _statusHint.Text = "Checking for updates…"
+            Dim release As ReleaseInfo
+            Try
+                release = Await checker.CheckAsync()
+            Catch ex As Exception
+                If manual Then
+                    MessageBox.Show(Me, "Tumbler couldn't check for updates:" & vbCrLf & ex.Message, "Tumbler",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information)
+                End If
+                Return
+            End Try
+            _settings.LastUpdateCheck = DateTime.UtcNow
+            _settings.Save()
+            If manual Then UpdateHint()
+            If release Is Nothing Then
+                If manual Then
+                    MessageBox.Show(Me, $"You have the latest version of Tumbler ({AppInfo.Version}).", "Tumbler",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information)
+                End If
+                Return
+            End If
+            If Not manual AndAlso release.Tag = _settings.SkippedVersion Then Return
+
+            Dim setupPath As String = Nothing
+            Using dlg As New UpdateDialog(release, checker)
+                dlg.ShowDialog(Me)
+                If dlg.Skipped Then
+                    _settings.SkippedVersion = release.Tag
+                    _settings.Save()
+                End If
+                If dlg.DialogResult = DialogResult.OK Then setupPath = dlg.SetupPath
+            End Using
+            If setupPath IsNot Nothing Then InstallUpdate(setupPath)
+        Finally
+            _checkingForUpdates = False
+        End Try
+    End Sub
+
+    Private Sub InstallUpdate(setupPath As String)
+        If Not ConfirmDiscard() Then
+            _statusHint.Text = "Update downloaded; it will install when you choose Check for updates again."
+            Return
+        End If
+        Try
+            Updates.StartSetup(setupPath)
+        Catch ex As Exception
+            MessageBox.Show(Me, "The update couldn't start: " & ex.Message, "Tumbler", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End Try
+        _closingForUpdate = True
+        Close()
     End Sub
 
 #End Region
@@ -458,6 +541,10 @@ Public Class MainForm
     End Function
 
     Protected Overrides Sub OnFormClosing(e As FormClosingEventArgs)
+        If _closingForUpdate Then
+            MyBase.OnFormClosing(e)
+            Return
+        End If
         If Not ConfirmDiscard() Then
             e.Cancel = True
             Return

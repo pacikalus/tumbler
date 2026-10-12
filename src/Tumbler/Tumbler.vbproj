@@ -13,7 +13,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <!-- Lets the project build on non-Windows machines too (it still only runs on Windows). -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>1.4.1</Version>
+    <Version>1.4.2</Version>
     <Product>Tumbler</Product>
     <Description>View and edit PDF files: pages, rotation, comments, highlights.</Description>
     <ApplicationIcon>Tumbler.ico</ApplicationIcon>

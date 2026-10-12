@@ -63,8 +63,22 @@ The installer:
 - adds Tumbler to the "Open with" menu for PDFs, without changing their default PDF app;
 - shows the licence, and can be removed from Settings > Apps.
 
-The version comes from `<Version>` in `src\Tumbler\Tumbler.vbproj`; raise it before each release
-so the new installer upgrades the old one.
+The version comes from `<Version>` in `src\Tumbler\Tumbler.vbproj` (see [Versions](#versions)).
+
+## Updates
+
+At the end, Make Installer asks whether to publish the new version on GitHub. Say **Y** and it
+creates the release `v<version>` with the setup program attached, listing the commit titles since
+the previous release as "What's new". The first time, it installs the GitHub command-line tool and
+asks you to sign in to GitHub in the browser. To publish a setup you made earlier, run
+`tools\publish-release.ps1`.
+
+Installed copies of Tumbler look for the newest release when they start (at most once a day) and
+from **Help > Check for updates**. When there is a newer version, Tumbler shows what's new and
+offers **Update now**, **Skip this version** or **Later**. Update now downloads the setup, checks it
+is signed with the same certificate as the running Tumbler, closes Tumbler (asking to save first),
+installs the update in place and opens Tumbler again. The startup check can be switched off under
+**Help > Check for updates when Tumbler starts**.
 
 ## Signing (the "Unknown publisher" warning)
 
