@@ -748,4 +748,34 @@ Public Class EditorTests
 
 #End Region
 
+    ''' <summary>The drag preview carries only the comment's letters, never the page text under it.</summary>
+    <Fact>
+    Public Sub Cutout_KeepsOnlyTheAnnotation()
+        Dim ed = OpenSample()
+        ed.AddComment(0, New PointF(72, 140), "Moving words", Color.Blue, 14, "Pacikalus")
+        Dim a = ed.Pages(0).Annotations.Last()
+        Using r As New PdfRenderer(ed.Bytes)
+            Dim withIt = r.Render(0, 2)
+            Dim without = r.Render(0, 2, a.AnnotIndex)
+            Dim area = Rectangle.FromLTRB(CInt(a.DisplayRect.Left * 2), CInt(a.DisplayRect.Top * 2),
+                                          CInt(a.DisplayRect.Right * 2), CInt(a.DisplayRect.Bottom * 2))
+            Dim cut = PdfRenderer.Cutout(withIt, without, area)
+            Assert.Equal(area.Width, cut.Width)
+            Dim kept = 0, pageInk = 0
+            For y = 0 To cut.Height - 1
+                For x = 0 To cut.Width - 1
+                    Dim alpha = cut.Bgra((y * cut.Width + x) * 4 + 3)
+                    Dim i = ((area.Top + y) * without.Width + area.Left + x) * 4
+                    If alpha = 255 Then
+                        kept += 1
+                    ElseIf without.Bgra(i) < 128 Then
+                        pageInk += 1   ' dark page text under the comment, left out
+                    End If
+                Next
+            Next
+            Assert.True(kept > 50, $"expected the comment's letters, got {kept} pixels")
+            Assert.True(pageInk > 50, $"expected page text under the comment to be left out, got {pageInk}")
+        End Using
+    End Sub
+
 End Class

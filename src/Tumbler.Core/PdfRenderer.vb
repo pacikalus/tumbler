@@ -100,6 +100,38 @@ Public NotInheritable Class PdfRenderer
     End Sub
 
     ''' <summary>Characters on a page in reading order, in display space (points).</summary>
+    ''' <summary>
+    ''' Just an annotation's own marks (its letters, lines, fill), cut from two renders of the
+    ''' same page at the same scale: one with the annotation and one without it. Inside
+    ''' <paramref name="area"/> (pixels), every pixel the annotation didn't change is made
+    ''' transparent, so the page behind it is left out.
+    ''' </summary>
+    Public Shared Function Cutout(withAnnotation As RenderedPage, withoutAnnotation As RenderedPage, area As Rectangle) As RenderedPage
+        If withAnnotation.Width <> withoutAnnotation.Width OrElse withAnnotation.Height <> withoutAnnotation.Height Then
+            Throw New ArgumentException("Both renders must be the same size.")
+        End If
+        area.Intersect(New Rectangle(0, 0, withAnnotation.Width, withAnnotation.Height))
+        Dim result As New RenderedPage With {.Width = Math.Max(0, area.Width), .Height = Math.Max(0, area.Height)}
+        result.Bgra = New Byte(result.Width * result.Height * 4 - 1) {}
+        Dim a = withAnnotation.Bgra, b = withoutAnnotation.Bgra
+        For y = 0 To result.Height - 1
+            Dim src = ((area.Top + y) * withAnnotation.Width + area.Left) * 4
+            Dim dst = y * result.Width * 4
+            For x = 0 To result.Width - 1
+                Dim i = src + x * 4
+                Dim diff = Math.Max(Math.Abs(CInt(a(i)) - b(i)), Math.Max(Math.Abs(CInt(a(i + 1)) - b(i + 1)), Math.Abs(CInt(a(i + 2)) - b(i + 2))))
+                If diff > 6 Then
+                    Dim j = dst + x * 4
+                    result.Bgra(j) = a(i)
+                    result.Bgra(j + 1) = a(i + 1)
+                    result.Bgra(j + 2) = a(i + 2)
+                    result.Bgra(j + 3) = 255
+                End If
+            Next
+        Next
+        Return result
+    End Function
+
     Public Function GetCharacters(pageIndex As Integer) As IReadOnlyList(Of TextChar)
         SyncLock PdfiumNative.Gate
             If _disposed Then Throw New ObjectDisposedException(NameOf(PdfRenderer))

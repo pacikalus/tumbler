@@ -114,6 +114,8 @@ Public Class DocumentView
     Private _moveStartClient As Point
     Private _moveOffset As SizeF             ' display points, already kept on the page
     Private _moveBackground As Bitmap        ' the page without the annotation being dragged
+    Private _moveCutout As Bitmap            ' just the dragged annotation, with no page behind it
+    Private _moveCutoutArea As RectangleF    ' where the cutout came from, in display points
     Private _dragChanged As Boolean          ' the mouse has actually moved since the drag began
     Private _resizing As AnnotationInfo      ' being resized from one of its handles
     Private _handle As ResizeHandle
@@ -436,23 +438,17 @@ Public Class DocumentView
         EvictCache(visible)
     End Sub
 
-    ''' <summary>While dragging: a copy of the annotation, cut from the page image, at the new place.</summary>
+    ''' <summary>While dragging: the annotation's own letters and lines at the new place, without the page behind them.</summary>
     Private Sub PaintMovePreview(g As Graphics)
         Dim a = _moving
         If a.PageIndex >= _pageRects.Count Then Return
-        Dim bounds = PdfEditor.MoveBounds(a)
-        Dim pad = CSng(Math.Max(2, a.LineWidth / 2 + 1))
-        bounds.Inflate(pad, pad)
-        Dim src = PageToClient(a.PageIndex, bounds)
-        Dim moved = bounds
+        Dim moved = MoveArea(a)
         moved.Offset(_moveOffset.Width, _moveOffset.Height)
         Dim dest = PageToClient(a.PageIndex, moved)
-        Dim bmp = GetPageBitmap(a.PageIndex)
-        If bmp IsNot Nothing Then
-            Dim page = ClientPageRect(a.PageIndex)
-            Dim sx = bmp.Width / CSng(page.Width), sy = bmp.Height / CSng(page.Height)
-            Dim srcInBitmap As New RectangleF((src.X - page.X) * sx, (src.Y - page.Y) * sy, src.Width * sx, src.Height * sy)
-            g.DrawImage(bmp, dest, srcInBitmap, GraphicsUnit.Pixel)
+        If _moveCutout IsNot Nothing Then
+            Dim area = _moveCutoutArea
+            area.Offset(_moveOffset.Width, _moveOffset.Height)
+            g.DrawImage(_moveCutout, PageToClient(a.PageIndex, area))
         End If
         Using p As New Pen(Color.DodgerBlue, 1.5F) With {.DashStyle = Drawing2D.DashStyle.Dash}
             g.DrawRectangle(p, dest.X, dest.Y, dest.Width, dest.Height)
@@ -642,12 +638,38 @@ Public Class DocumentView
         If Not _dragChanged AndAlso _moveBackground Is Nothing Then Return GetPageBitmap(a.PageIndex)
         If _moveBackground Is Nothing Then
             Try
-                _moveBackground = ImageUtil.ToBitmap(_renderer.Render(a.PageIndex, PixelsPerPoint, a.AnnotIndex))
+                Dim ppp = PixelsPerPoint
+                Dim without = _renderer.Render(a.PageIndex, ppp, a.AnnotIndex)
+                _moveBackground = ImageUtil.ToBitmap(without)
+                If _moving IsNot Nothing Then MakeMoveCutout(a, ppp, without)
             Catch ex As Exception
                 Return GetPageBitmap(a.PageIndex)
             End Try
         End If
         Return _moveBackground
+    End Function
+
+    ''' <summary>
+    ''' The picture carried along while moving: the annotation's own letters and lines,
+    ''' found by comparing the page drawn with and without it.
+    ''' </summary>
+    Private Sub MakeMoveCutout(a As AnnotationInfo, ppp As Double, without As RenderedPage)
+        Dim area = MoveArea(a)
+        Dim withIt = _renderer.Render(a.PageIndex, ppp)
+        Dim px = Rectangle.FromLTRB(CInt(Math.Floor(area.Left * ppp)), CInt(Math.Floor(area.Top * ppp)),
+                                    CInt(Math.Ceiling(area.Right * ppp)), CInt(Math.Ceiling(area.Bottom * ppp)))
+        px.Intersect(New Rectangle(0, 0, withIt.Width, withIt.Height))
+        If px.Width <= 0 OrElse px.Height <= 0 Then Return
+        _moveCutout = ImageUtil.ToBitmap(PdfRenderer.Cutout(withIt, without, px))
+        _moveCutoutArea = RectangleF.FromLTRB(CSng(px.Left / ppp), CSng(px.Top / ppp), CSng(px.Right / ppp), CSng(px.Bottom / ppp))
+    End Sub
+
+    ''' <summary>The annotation's box plus a little room for line ends and borders, in display points.</summary>
+    Private Shared Function MoveArea(a As AnnotationInfo) As RectangleF
+        Dim bounds = PdfEditor.MoveBounds(a)
+        Dim pad = CSng(Math.Max(2, a.LineWidth / 2 + 1))
+        bounds.Inflate(pad, pad)
+        Return bounds
     End Function
 
     Private Sub EndMove()
@@ -658,6 +680,10 @@ Public Class DocumentView
         If _moveBackground IsNot Nothing Then
             _moveBackground.Dispose()
             _moveBackground = Nothing
+        End If
+        If _moveCutout IsNot Nothing Then
+            _moveCutout.Dispose()
+            _moveCutout = Nothing
         End If
     End Sub
 
