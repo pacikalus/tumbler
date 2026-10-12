@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Tumbler</RootNamespace>
+    <AssemblyName>Tumbler</AssemblyName>
+    <StartupObject>Tumbler.Program</StartupObject>
+    <MyType>WindowsFormsWithCustomSubMain</MyType>
+    <OptionStrict>On</OptionStrict>
+    <OptionInfer>On</OptionInfer>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Lets the project build on non-Windows machines too (it still only runs on Windows). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Version>1.0.0</Version>
+    <Product>Tumbler</Product>
+    <Description>View and edit PDF files: pages, rotation, comments, highlights.</Description>
+    <ApplicationIcon>Tumbler.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Import Include="System.Drawing" />
+    <Import Include="System.Windows.Forms" />
+    <Import Include="Tumbler.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Also embedded so the window and taskbar show the same icon as the .exe. -->
+    <EmbeddedResource Include="Tumbler.ico" LogicalName="Tumbler.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tumbler.Core\Tumbler.Core.vbproj" />
+  </ItemGroup>
+
+</Project>

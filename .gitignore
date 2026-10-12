@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
+# Build output made by "Build and Sign Tumbler.bat"
+publish/
+*.zip
+
+# Never publish signing keys
+*.pfx
+*.p12
+*.key
+*.cer

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Tumbler.Core</RootNamespace>
+    <OptionStrict>On</OptionStrict>
+    <OptionInfer>On</OptionInfer>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- PDF editing (pages, rotation, annotations). MIT licence. -->
+    <PackageReference Include="PDFsharp" Version="6.1.1" />
+    <!-- PDFium wrapper for rendering and text positions. MIT licence; PDFium itself is BSD-3. -->
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+  </ItemGroup>
+
+</Project>
