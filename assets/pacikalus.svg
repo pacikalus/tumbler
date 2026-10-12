@@ -1,60 +1,83 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <!-- Pacikalus: "Pa cik alus?" is Latvian for "How much is the beer?".
-       A beer with a price tag, in front of Riga's Powder Tower. -->
+       A medieval tankard with a price scroll, in front of Riga's Powder Tower. -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2A4C93"/><stop offset="1" stop-color="#13234F"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1B2550"/><stop offset="0.7" stop-color="#3A3168"/><stop offset="1" stop-color="#6B3F5E"/>
     </linearGradient>
-    <linearGradient id="beer" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#FFC21A"/><stop offset="0.55" stop-color="#F5A300"/><stop offset="1" stop-color="#D98500"/>
+    <linearGradient id="stone" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#B9A27A"/><stop offset="0.45" stop-color="#A68D66"/><stop offset="1" stop-color="#6E5B41"/>
     </linearGradient>
-    <linearGradient id="tower" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#5A78B8"/><stop offset="0.5" stop-color="#4A68AA"/><stop offset="1" stop-color="#34508E"/>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#A8672F"/><stop offset="0.45" stop-color="#8A5224"/><stop offset="1" stop-color="#5C3416"/>
     </linearGradient>
+    <linearGradient id="iron" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8C8F96"/><stop offset="0.5" stop-color="#5E6168"/><stop offset="1" stop-color="#3A3C42"/>
+    </linearGradient>
+    <clipPath id="towerclip"><path d="M148 104 L230 104 L236 250 L142 250 Z"/></clipPath>
     <clipPath id="badge"><rect x="8" y="8" width="240" height="240" rx="56"/></clipPath>
   </defs>
-  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#sky)"/>
   <g clip-path="url(#badge)">
-    <!-- Powder Tower (Pulvertornis): round stone tower, cone roof, small spire -->
-    <g>
-      <path d="M150 104 Q150 98 156 97 L222 97 Q228 98 228 104 L232 250 L146 250 Z" fill="url(#tower)"/>
-      <path d="M144 100 L189 34 L234 100 Z" fill="#0F1C40"/>
-      <path d="M189 34 L189 18" stroke="#0F1C40" stroke-width="3"/>
-      <circle cx="189" cy="16" r="3" fill="#F5B800"/>
-      <rect x="146" y="96" width="86" height="8" rx="3" fill="#263F7A"/>
-      <g fill="#1B2F63">
-        <path d="M200 120 a6 6 0 0 1 12 0 v14 h-12 z"/>
-        <path d="M200 158 a6 6 0 0 1 12 0 v14 h-12 z"/>
-      </g>
-      <!-- cannonballs still stuck in the wall -->
-      <circle cx="222" cy="206" r="4" fill="#1B2F63"/>
-      <circle cx="160" cy="208" r="3.5" fill="#1B2F63"/>
-      <g stroke="#3F5C9E" stroke-width="2" opacity="0.7">
-        <path d="M148 140 h82"/><path d="M148 182 h82"/>
-      </g>
+    <!-- stars and moon -->
+    <g fill="#F4E7C3">
+      <circle cx="120" cy="30" r="1.8"/><circle cx="146" cy="52" r="1.4"/><circle cx="232" cy="120" r="1.6"/><circle cx="104" cy="58" r="1.2"/>
     </g>
-    <!-- ground -->
-    <rect x="0" y="226" width="256" height="40" fill="#0F1C40" opacity="0.55"/>
+    <path d="M232 46 a16 16 0 1 1 -14 -22 a12 12 0 1 0 14 22 z" fill="#F4E7C3"/>
+    <!-- Powder Tower: round stone tower, shingled cone roof, pennant -->
+    <path d="M148 104 L230 104 L236 250 L142 250 Z" fill="url(#stone)"/>
+    <g stroke="#7E6A4A" stroke-width="1.6" opacity="0.8" clip-path="url(#towerclip)">
+      <path d="M146 124 h86"/><path d="M145 144 h88"/><path d="M144 164 h90"/><path d="M144 184 h91"/><path d="M143 204 h92"/><path d="M143 224 h93"/>
+      <path d="M170 104 v20 M200 104 v20 M220 104 v20 M160 124 v20 M188 124 v20 M214 124 v20 M174 144 v20 M204 144 v20 M226 144 v20 M162 164 v20 M192 164 v20 M218 164 v20 M176 184 v20 M206 184 v20 M228 184 v20 M164 204 v20 M196 204 v20 M222 204 v20"/>
+    </g>
+    <!-- battlement ring under the roof -->
+    <path d="M142 96 h96 v12 h-96 z" fill="#8F7A57"/>
+    <g fill="#8F7A57"><rect x="142" y="88" width="12" height="9"/><rect x="164" y="88" width="12" height="9"/><rect x="186" y="88" width="12" height="9"/><rect x="208" y="88" width="12" height="9"/><rect x="228" y="88" width="10" height="9"/></g>
+    <path d="M146 90 L189 32 L234 90 Z" fill="#2B1D1A"/>
+    <g stroke="#4A332B" stroke-width="1.5"><path d="M162 70 h54"/><path d="M174 54 h30"/><path d="M155 80 h68"/></g>
+    <path d="M189 32 V12" stroke="#2B1D1A" stroke-width="3"/>
+    <path d="M190 12 l20 5 l-20 5 z" fill="#B3262A"/>
+    <!-- arrow-slit windows and cannonballs -->
+    <g fill="#2B1D1A"><rect x="206" y="128" width="6" height="18" rx="3"/><rect x="206" y="170" width="6" height="18" rx="3"/></g>
+    <circle cx="224" cy="210" r="4.5" fill="#3A302A"/><circle cx="160" cy="214" r="4" fill="#3A302A"/>
+    <!-- cobbles -->
+    <rect x="0" y="228" width="256" height="40" fill="#2A1E26" opacity="0.7"/>
   </g>
-  <!-- handle -->
-  <path d="M150 118 h16 a20 20 0 0 1 20 20 v26 a20 20 0 0 1 -20 20 h-16" fill="none" stroke="#E7ECF7" stroke-width="12"/>
-  <!-- glass -->
-  <rect x="44" y="100" width="112" height="122" rx="16" fill="#E7ECF7"/>
-  <rect x="54" y="112" width="92" height="100" rx="9" fill="url(#beer)"/>
-  <rect x="66" y="122" width="10" height="78" rx="5" fill="#FFFFFF" opacity="0.35"/>
-  <circle cx="102" cy="176" r="4.5" fill="#FFE59A"/>
-  <circle cx="122" cy="152" r="3.5" fill="#FFE59A"/>
-  <circle cx="110" cy="134" r="3" fill="#FFE59A"/>
-  <circle cx="130" cy="192" r="3" fill="#FFE59A"/>
+  <!-- tankard handle (wood with iron) -->
+  <path d="M150 122 h14 a20 20 0 0 1 20 20 v28 a20 20 0 0 1 -20 20 h-14" fill="none" stroke="#5C3416" stroke-width="13"/>
+  <path d="M150 122 h14 a20 20 0 0 1 20 20 v28 a20 20 0 0 1 -20 20 h-14" fill="none" stroke="#8A5224" stroke-width="5"/>
+  <!-- tankard body: wooden staves, slightly tapered -->
+  <path d="M48 108 L152 108 L148 222 Q148 228 142 228 L58 228 Q52 228 52 222 Z" fill="url(#wood)"/>
+  <g stroke="#4A2A12" stroke-width="2" opacity="0.75">
+    <path d="M70 110 L71 226"/><path d="M90 110 L90.5 226"/><path d="M110 110 L110 226"/><path d="M130 110 L129.5 226"/>
+  </g>
+  <rect x="58" y="114" width="7" height="104" rx="3.5" fill="#FFFFFF" opacity="0.14"/>
+  <!-- iron bands with rivets -->
+  <rect x="49" y="126" width="102" height="11" rx="2" fill="url(#iron)"/>
+  <rect x="51" y="200" width="98" height="11" rx="2" fill="url(#iron)"/>
+  <g fill="#C9CCD2">
+    <circle cx="62" cy="131.5" r="1.8"/><circle cx="86" cy="131.5" r="1.8"/><circle cx="110" cy="131.5" r="1.8"/><circle cx="134" cy="131.5" r="1.8"/>
+    <circle cx="64" cy="205.5" r="1.8"/><circle cx="88" cy="205.5" r="1.8"/><circle cx="112" cy="205.5" r="1.8"/><circle cx="136" cy="205.5" r="1.8"/>
+  </g>
   <!-- foam -->
-  <g fill="#FFFFFF">
-    <circle cx="58" cy="102" r="19"/><circle cx="84" cy="90" r="24"/><circle cx="114" cy="92" r="22"/>
-    <circle cx="140" cy="102" r="19"/><rect x="44" y="100" width="112" height="18"/>
+  <g fill="#FFF6E0">
+    <circle cx="60" cy="106" r="17"/><circle cx="86" cy="94" r="22"/><circle cx="116" cy="96" r="20"/>
+    <circle cx="140" cy="106" r="17"/><rect x="46" y="104" width="108" height="14"/>
   </g>
-  <path d="M140 120 q8 0 8 12 q0 9 -7 9 q-6 0 -6 -9 z" fill="#FFFFFF"/>
-  <!-- price tag: "pa cik?" = how much? -->
-  <g transform="rotate(-12 64 46)">
-    <path d="M30 28 h52 a8 8 0 0 1 8 8 v24 a8 8 0 0 1 -8 8 h-52 a8 8 0 0 1 -8 -8 v-24 a8 8 0 0 1 8 -8 z" fill="#E5383B"/>
-    <text x="56" y="58" font-family="DejaVu Sans, Segoe UI, Arial" font-weight="bold" font-size="28" fill="#FFFFFF" text-anchor="middle">€?</text>
+  <path d="M138 118 q7 0 7 11 q0 8 -6 8 q-6 0 -6 -8 z" fill="#FFF6E0"/>
+  <!-- parchment price scroll with a ruble sign -->
+  <g transform="rotate(-10 62 46)">
+    <path d="M28 30 h68 v34 h-68 z" fill="#EBD9A8"/>
+    <path d="M28 30 q-8 0 -8 8 v26 q0 -6 8 -6 z" fill="#C9B07A"/>
+    <path d="M96 30 q8 0 8 8 v26 q0 -6 -8 -6 z" fill="#C9B07A"/>
+    <path d="M20 64 q0 6 8 6 h68 q8 0 8 -6" fill="none" stroke="#B39A64" stroke-width="2"/>
+    <rect x="28" y="30" width="68" height="34" fill="none" stroke="#B39A64" stroke-width="1.5"/>
+    <!-- ₽ drawn as strokes (not a font), followed by ? -->
+    <g stroke="#7A1E1E" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M48 60 V36 h9 a7 7 0 0 1 0 14 h-14"/>
+      <path d="M43 55 h13"/>
+      <path d="M70 41 a7 7 0 1 1 9 6.5 q-4 1.5 -4 6"/>
+    </g>
+    <circle cx="75" cy="60.5" r="2.8" fill="#7A1E1E"/>
   </g>
 </svg>
