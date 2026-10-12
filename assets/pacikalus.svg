@@ -65,19 +65,15 @@
     <circle cx="140" cy="106" r="17"/><rect x="46" y="104" width="108" height="14"/>
   </g>
   <path d="M138 118 q7 0 7 11 q0 8 -6 8 q-6 0 -6 -8 z" fill="#FFF6E0"/>
-  <!-- parchment price scroll with a ruble sign -->
+  <!-- parchment price scroll -->
   <g transform="rotate(-10 62 46)">
     <path d="M28 30 h68 v34 h-68 z" fill="#EBD9A8"/>
     <path d="M28 30 q-8 0 -8 8 v26 q0 -6 8 -6 z" fill="#C9B07A"/>
     <path d="M96 30 q8 0 8 8 v26 q0 -6 -8 -6 z" fill="#C9B07A"/>
     <path d="M20 64 q0 6 8 6 h68 q8 0 8 -6" fill="none" stroke="#B39A64" stroke-width="2"/>
     <rect x="28" y="30" width="68" height="34" fill="none" stroke="#B39A64" stroke-width="1.5"/>
-    <!-- ₽ drawn as strokes (not a font), followed by ? -->
-    <g stroke="#7A1E1E" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M48 60 V36 h9 a7 7 0 0 1 0 14 h-14"/>
-      <path d="M43 55 h13"/>
-      <path d="M70 41 a7 7 0 1 1 9 6.5 q-4 1.5 -4 6"/>
-    </g>
-    <circle cx="75" cy="60.5" r="2.8" fill="#7A1E1E"/>
+    <!-- a question mark: "how much?" (drawn as strokes, not a font) -->
+    <path d="M55 41 a7.5 7.5 0 1 1 9.5 7 q-4.5 1.5 -4.5 6.5" stroke="#7A1E1E" stroke-width="5.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="60" cy="61" r="3" fill="#7A1E1E"/>
   </g>
 </svg>
