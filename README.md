@@ -106,6 +106,10 @@ The UI is built in code rather than with the Designer, so every form is a plain 
 - Saving rewrites the file, which invalidates any digital signatures in it.
 - Each edit re-saves the document in memory, so very large files (hundreds of MB) will feel slow to edit.
 
+## Authors
+
+Mike Rabinovitch ([pacikalus@gmail.com](mailto:pacikalus@gmail.com)), with [Claude](https://claude.ai) by Anthropic as co-author.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). PDFsharp and Docnet.Core are MIT; PDFium is BSD-3.
