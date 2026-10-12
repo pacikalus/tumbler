@@ -13,7 +13,9 @@ Public Class MainForm
 
     ' Layout
     Private ReadOnly _menu As New MenuStrip()
-    Private ReadOnly _toolbar As New ToolStrip With {.GripStyle = ToolStripGripStyle.Hidden, .ImageScalingSize = New Size(16, 16)}
+    Private ReadOnly _toolbar As New ToolStrip With {
+        .GripStyle = ToolStripGripStyle.Hidden, .Padding = New Padding(6, 2, 6, 2),
+        .Renderer = New FlatToolbarRenderer()}
     Private ReadOnly _status As New StatusStrip()
     Private ReadOnly _statusFile As New ToolStripStatusLabel With {.Spring = True, .TextAlign = ContentAlignment.MiddleLeft}
     Private ReadOnly _statusHint As New ToolStripStatusLabel()
@@ -39,6 +41,8 @@ Public Class MainForm
     Private ReadOnly _tbWidth As New ToolStripDropDownButton("Thickness") With {.Visible = False}
     Private ReadOnly _tbColor As New ToolStripDropDownButton("Colour")
     Private ReadOnly _docItems As New List(Of ToolStripItem)   ' enabled only with a document open
+    Private ReadOnly _iconOf As New Dictionary(Of ToolStripItem, String)   ' toolbar picture for each button
+    Private _iconSize As Integer = 20
 
     ' Menu items that change state
     Private _miSave, _miSaveAs, _miClose, _miUndo, _miRedo As ToolStripMenuItem
@@ -88,6 +92,9 @@ Public Class MainForm
                                         _outerSplit.Panel1, _outerSplit.Panel2, _innerSplit.Panel1, _innerSplit.Panel2, _toolbar, _status}
             EnableFileDrop(target)
         Next
+
+        AddHandler _toolbar.DpiChangedAfterParent, Sub() ApplyToolbarIcons(_toolbar.DeviceDpi)
+        ApplyToolbarIcons(DeviceDpi)
 
         SetTool(ToolMode.Select)
         UpdateUi()
@@ -165,20 +172,53 @@ Public Class MainForm
         _menu.Items.AddRange({file, edit, view, pages, comments, help})
     End Sub
 
-    Private Function Button(text As String, tip As String, handler As Action, Optional needsDoc As Boolean = True) As ToolStripButton
-        Dim b As New ToolStripButton(text) With {.ToolTipText = tip, .DisplayStyle = ToolStripItemDisplayStyle.Text}
+    ''' <summary>A picture-only toolbar button; the tooltip says what it does.</summary>
+    Private Function Button(icon As String, tip As String, handler As Action, Optional needsDoc As Boolean = True) As ToolStripButton
+        Dim b As New ToolStripButton(tip)
+        SetIcon(b, icon, tip)
         AddHandler b.Click, Sub() handler()
         If needsDoc Then _docItems.Add(b)
         Return b
     End Function
 
+    Private Sub SetIcon(item As ToolStripItem, icon As String, tip As String,
+                        Optional style As ToolStripItemDisplayStyle = ToolStripItemDisplayStyle.Image)
+        _iconOf(item) = icon
+        item.DisplayStyle = style
+        item.ToolTipText = tip
+        item.AccessibleName = tip
+        item.Padding = New Padding(2)
+    End Sub
+
+    ''' <summary>Puts in the pictures sized for the screen. Runs again if the window moves to a screen with other scaling.</summary>
+    Private Sub ApplyToolbarIcons(dpi As Integer)
+        _iconSize = ToolbarIcons.SizeFor(dpi)
+        Dim icons = ToolbarIcons.Load(_iconSize)
+        _toolbar.SuspendLayout()
+        _toolbar.ImageScalingSize = New Size(_iconSize, _iconSize)
+        For Each pair In _iconOf
+            Dim img As Bitmap = Nothing
+            If Not icons.TryGetValue(pair.Value, img) Then Continue For
+            Dim old = pair.Key.Image
+            pair.Key.Image = img
+            pair.Key.ImageScaling = ToolStripItemImageScaling.None
+            old?.Dispose()
+        Next
+        For Each unused In icons.Where(Function(p) Not _iconOf.ContainsValue(p.Key))
+            unused.Value.Dispose()
+        Next
+        _tbColor.ImageScaling = ToolStripItemImageScaling.None
+        UpdateColorButton()
+        _toolbar.ResumeLayout(True)
+    End Sub
+
     Private Sub BuildToolbar()
-        Dim open = Button("Open", "Open a PDF (Ctrl+O)", AddressOf OpenDocumentDialog, needsDoc:=False)
-        _tbSave.ToolTipText = "Save (Ctrl+S)"
+        Dim open = Button("open", "Open a PDF (Ctrl+O)", AddressOf OpenDocumentDialog, needsDoc:=False)
+        SetIcon(_tbSave, "save", "Save (Ctrl+S)")
         AddHandler _tbSave.Click, Sub() SaveDocument()
-        _tbUndo.ToolTipText = "Undo (Ctrl+Z)"
+        SetIcon(_tbUndo, "undo", "Undo (Ctrl+Z)")
         AddHandler _tbUndo.Click, Sub() UndoEdit()
-        _tbRedo.ToolTipText = "Redo (Ctrl+Y)"
+        SetIcon(_tbRedo, "redo", "Redo (Ctrl+Y)")
         AddHandler _tbRedo.Click, Sub() RedoEdit()
 
         AddHandler _tbPage.KeyDown, AddressOf OnPageBoxKeyDown
@@ -195,12 +235,12 @@ Public Class MainForm
                                     End Sub
         _docItems.Add(_tbZoom)
 
-        For Each t In {(_tbSelect, ToolMode.Select, "Select, scroll, and click comments to edit them"),
-                       (_tbHighlight, ToolMode.Highlight, "Highlight: drag across text (or drag a box where there is no text)"),
-                       (_tbNote, ToolMode.Note, "Comment: click on the page where the comment box should go"),
-                       (_tbLine, ToolMode.Line, "Line: drag to draw a line (hold Shift for straight across, down or 45°)")}
+        For Each t In {(_tbSelect, ToolMode.Select, "select", "Select: scroll, click a comment or line to select it, drag it to move it"),
+                       (_tbHighlight, ToolMode.Highlight, "highlight", "Highlight: drag across text (or drag a box where there is no text)"),
+                       (_tbNote, ToolMode.Note, "comment", "Comment: click on the page where the comment box should go"),
+                       (_tbLine, ToolMode.Line, "line", "Line: drag to draw a line (hold Shift for straight across, down or 45°)")}
             Dim mode = t.Item2
-            t.Item1.ToolTipText = t.Item3
+            SetIcon(t.Item1, t.Item3, t.Item4)
             AddHandler t.Item1.Click, Sub() SetTool(mode)
             _docItems.Add(t.Item1)
         Next
@@ -220,6 +260,7 @@ Public Class MainForm
                                  End Sub
         _tbColor.DropDownItems.Add(custom)
         _tbColor.ToolTipText = "Colour for new highlights, comments and lines"
+        _tbColor.DisplayStyle = ToolStripItemDisplayStyle.Image
         _docItems.Add(_tbColor)
 
         For Each w In {("Thin (1 pt)", 1.0), ("Medium (2 pt)", 2.0), ("Thick (4 pt)", 4.0), ("Very thick (8 pt)", 8.0)}
@@ -233,10 +274,11 @@ Public Class MainForm
                                  End Sub
             _tbWidth.DropDownItems.Add(mi)
         Next
-        _tbWidth.ToolTipText = "Thickness of new lines"
+        SetIcon(_tbWidth, "thickness", "Thickness of new lines", ToolStripItemDisplayStyle.ImageAndText)
         _docItems.Add(_tbWidth)
 
-        Dim rotateAllButton As New ToolStripDropDownButton("Rotate all") With {.ToolTipText = "Rotate every page"}
+        Dim rotateAllButton As New ToolStripDropDownButton("Rotate all pages")
+        SetIcon(rotateAllButton, "rotate-all", "Rotate all pages")
         For Each r In {("Left 90°", -90), ("Right 90°", 90), ("180°", 180)}
             Dim degrees = r.Item2
             Dim mi As New ToolStripMenuItem(r.Item1)
@@ -248,21 +290,21 @@ Public Class MainForm
         _toolbar.Items.AddRange({
             open, _tbSave, New ToolStripSeparator(),
             _tbUndo, _tbRedo, New ToolStripSeparator(),
-            Button("◀", "Previous page", Sub() GoToPage(_view.CurrentPage - 1)),
+            Button("prev", "Previous page", Sub() GoToPage(_view.CurrentPage - 1)),
             _tbPage, _tbPageCount,
-            Button("▶", "Next page", Sub() GoToPage(_view.CurrentPage + 1)),
+            Button("next", "Next page", Sub() GoToPage(_view.CurrentPage + 1)),
             New ToolStripSeparator(),
-            Button("−", "Zoom out (Ctrl+-)", Sub() _view.Zoom /= 1.25),
+            Button("zoom-out", "Zoom out (Ctrl+-)", Sub() _view.Zoom /= 1.25),
             _tbZoom,
-            Button("+", "Zoom in (Ctrl++)", Sub() _view.Zoom *= 1.25),
+            Button("zoom-in", "Zoom in (Ctrl++)", Sub() _view.Zoom *= 1.25),
             New ToolStripSeparator(),
             _tbSelect, _tbHighlight, _tbNote, _tbLine, _tbColor, _tbWidth,
             New ToolStripSeparator(),
-            Button("↺ Rotate", "Rotate selected page(s) left", Sub() RotateSelected(-90)),
-            Button("↻ Rotate", "Rotate selected page(s) right", Sub() RotateSelected(90)),
+            Button("rotate-left", "Rotate selected pages left (Ctrl+Shift+-)", Sub() RotateSelected(-90)),
+            Button("rotate-right", "Rotate selected pages right (Ctrl+Shift++)", Sub() RotateSelected(90)),
             rotateAllButton,
-            Button("Delete pages", "Delete selected page(s)", AddressOf DeleteSelectedPages),
-            Button("Insert pages…", "Insert pages from another PDF", AddressOf InsertPages)})
+            Button("delete-pages", "Delete selected pages", AddressOf DeleteSelectedPages),
+            Button("insert-pages", "Insert pages from another PDF (Ctrl+I)", AddressOf InsertPages)})
     End Sub
 
     Private Sub BuildPanels()
@@ -682,8 +724,7 @@ Public Class MainForm
 
     Private Sub UpdateColorButton()
         Dim old = _tbColor.Image
-        _tbColor.Image = Palette.Swatch(CurrentToolColor(), 16)
-        _tbColor.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText
+        _tbColor.Image = ToolbarIcons.ColorDot(CurrentToolColor(), _iconSize)
         old?.Dispose()
         Dim forWhat = If(_view.Tool = ToolMode.Note, "comments", If(_view.Tool = ToolMode.Line, "lines", "highlights"))
         _tbColor.ToolTipText = $"Colour for new {forWhat}"

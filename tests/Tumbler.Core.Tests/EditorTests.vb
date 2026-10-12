@@ -389,6 +389,33 @@ Public Class EditorTests
     End Sub
 
     <Fact>
+    Public Sub Render_CanLeaveOutOneAnnotation_ForDragging()
+        Dim ed = OpenSample()
+        ed.AddComment(0, New PointF(100, 100), "Dragged", Color.Blue, 14, "Mike")
+        ed.AddComment(0, New PointF(100, 300), "Stays", Color.Blue, 14, "Mike")
+        Dim dragged = ed.Pages(0).Annotations.First(Function(a) a.Contents = "Dragged")
+        Dim stays = ed.Pages(0).Annotations.First(Function(a) a.Contents = "Stays")
+        Using r As New PdfRenderer(ed.Bytes)
+            Dim CountBlue = Function(img As RenderedPage, rect As RectangleF)
+                                Dim n = 0
+                                For y = CInt(rect.Top) To CInt(rect.Bottom) - 1
+                                    For x = CInt(rect.Left) To CInt(rect.Right) - 1
+                                        Dim c = PixelAt(img, x, y)
+                                        If c.B > 150 AndAlso c.R < 120 AndAlso c.G < 120 Then n += 1
+                                    Next
+                                Next
+                                Return n
+                            End Function
+            Dim hidden = r.Render(0, 1, dragged.AnnotIndex)
+            Assert.Equal(0, CountBlue(hidden, dragged.DisplayRect))
+            Assert.True(CountBlue(hidden, stays.DisplayRect) > 30, "the other comment should still be drawn")
+            ' Hiding is only for that one picture; the next render shows it again.
+            Dim normal = r.Render(0, 1)
+            Assert.True(CountBlue(normal, dragged.DisplayRect) > 30, "the comment should be back")
+        End Using
+    End Sub
+
+    <Fact>
     Public Sub Line_MovesWithBothEnds_AndStopsAtThePageEdge()
         Dim ed = OpenSample()
         ed.AddLine(0, New PointF(100, 100), New PointF(200, 150), Color.Red, 2, "Mike")

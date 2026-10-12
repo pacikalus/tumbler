@@ -61,6 +61,24 @@ Friend Module PdfiumNative
                                      sizeX As Integer, sizeY As Integer, rotate As Integer, flags As Integer)
     End Sub
 
+    Friend Const FPDF_ANNOT_FLAG_HIDDEN As Integer = &H2
+
+    <DllImport(PdfiumDll, CallingConvention:=CallingConvention.Cdecl)>
+    Friend Function FPDFPage_GetAnnot(page As IntPtr, index As Integer) As IntPtr
+    End Function
+
+    <DllImport(PdfiumDll, CallingConvention:=CallingConvention.Cdecl)>
+    Friend Sub FPDFPage_CloseAnnot(annot As IntPtr)
+    End Sub
+
+    <DllImport(PdfiumDll, CallingConvention:=CallingConvention.Cdecl)>
+    Friend Function FPDFAnnot_GetFlags(annot As IntPtr) As Integer
+    End Function
+
+    <DllImport(PdfiumDll, CallingConvention:=CallingConvention.Cdecl)>
+    Friend Function FPDFAnnot_SetFlags(annot As IntPtr, flags As Integer) As Integer
+    End Function
+
     <DllImport(PdfiumDll, CallingConvention:=CallingConvention.Cdecl)>
     Private Function FPDF_SaveAsCopy(document As IntPtr, fileWrite As IntPtr, flags As Integer) As Integer
     End Function

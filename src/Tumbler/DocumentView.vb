@@ -81,6 +81,7 @@ Public Class DocumentView
     Private _moving As AnnotationInfo        ' being dragged to a new place
     Private _moveStartClient As Point
     Private _moveOffset As SizeF             ' display points, already kept on the page
+    Private _moveBackground As Bitmap        ' the page without the annotation being dragged
 
     Public Event CurrentPageChanged As EventHandler
     Public Event ZoomChanged As EventHandler
@@ -368,7 +369,7 @@ Public Class DocumentView
                 g.FillRectangle(shadow, r.Left + 3, r.Top + 3, r.Width, r.Height)
             End Using
             g.FillRectangle(Brushes.White, r)
-            Dim bmp = GetPageBitmap(i)
+            Dim bmp = If(_moving IsNot Nothing AndAlso i = _moving.PageIndex, GetMoveBackground(), GetPageBitmap(i))
             If bmp IsNot Nothing Then
                 g.InterpolationMode = Drawing2D.InterpolationMode.Low
                 g.DrawImage(bmp, r)
@@ -466,6 +467,31 @@ Public Class DocumentView
                 End Using
                 g.SmoothingMode = oldMode
         End Select
+    End Sub
+
+    ''' <summary>
+    ''' While a comment or line is dragged, its page is drawn without it, so it doesn't
+    ''' stay behind at the old place. Made once the mouse actually moves.
+    ''' </summary>
+    Private Function GetMoveBackground() As Bitmap
+        Dim a = _moving
+        If _moveOffset.IsEmpty AndAlso _moveBackground Is Nothing Then Return GetPageBitmap(a.PageIndex)
+        If _moveBackground Is Nothing Then
+            Try
+                _moveBackground = ImageUtil.ToBitmap(_renderer.Render(a.PageIndex, PixelsPerPoint, a.AnnotIndex))
+            Catch ex As Exception
+                Return GetPageBitmap(a.PageIndex)
+            End Try
+        End If
+        Return _moveBackground
+    End Function
+
+    Private Sub EndMove()
+        _moving = Nothing
+        If _moveBackground IsNot Nothing Then
+            _moveBackground.Dispose()
+            _moveBackground = Nothing
+        End If
     End Sub
 
     Private Function GetPageBitmap(index As Integer) As Bitmap
@@ -714,7 +740,7 @@ Public Class DocumentView
         MyBase.OnMouseUp(e)
         If _moving IsNot Nothing Then
             Dim a = _moving, offset = _moveOffset
-            _moving = Nothing
+            EndMove()
             Capture = False
             Cursor = Cursors.Default
             Invalidate()
@@ -795,7 +821,7 @@ Public Class DocumentView
     End Function
 
     Private Sub CancelDrag()
-        _moving = Nothing
+        EndMove()
         _dragPage = -1
         _selAnchor = -1
         _selEnd = -1

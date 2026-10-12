@@ -30,8 +30,10 @@ Public NotInheritable Class PdfRenderer
     ''' <summary>
     ''' Renders a page. <paramref name="scale"/> is pixels per point
     ''' (1.0 = 72 dpi; 96 dpi screens at 100% zoom use 96/72).
+    ''' <paramref name="hideAnnotIndex"/> leaves out one annotation (its position in
+    ''' the page's /Annots), so the page can be drawn behind a comment being dragged.
     ''' </summary>
-    Public Function Render(pageIndex As Integer, scale As Double) As RenderedPage
+    Public Function Render(pageIndex As Integer, scale As Double, Optional hideAnnotIndex As Integer = -1) As RenderedPage
         If _disposed Then Throw New ObjectDisposedException(NameOf(PdfRenderer))
         EnsureNativeDocument()
         Dim page = PdfiumNative.FPDF_LoadPage(_nativeDoc, pageIndex)
@@ -43,7 +45,21 @@ Public NotInheritable Class PdfRenderer
             If bmp = IntPtr.Zero Then Throw New OutOfMemoryException($"Not enough memory to draw page {pageIndex + 1} at this zoom.")
             Try
                 PdfiumNative.FPDFBitmap_FillRect(bmp, 0, 0, w, h, &HFFFFFFFFUI)   ' white, opaque
-                PdfiumNative.FPDF_RenderPageBitmap(bmp, page, 0, 0, w, h, 0, PdfiumNative.FPDF_ANNOT)
+                Dim hidden = If(hideAnnotIndex >= 0, PdfiumNative.FPDFPage_GetAnnot(page, hideAnnotIndex), IntPtr.Zero)
+                Dim oldFlags = 0
+                If hidden <> IntPtr.Zero Then
+                    oldFlags = PdfiumNative.FPDFAnnot_GetFlags(hidden)
+                    PdfiumNative.FPDFAnnot_SetFlags(hidden, oldFlags Or PdfiumNative.FPDF_ANNOT_FLAG_HIDDEN)
+                End If
+                Try
+                    PdfiumNative.FPDF_RenderPageBitmap(bmp, page, 0, 0, w, h, 0, PdfiumNative.FPDF_ANNOT)
+                Finally
+                    ' Only this renderer's in-memory copy changed, but put the flag back anyway.
+                    If hidden <> IntPtr.Zero Then
+                        PdfiumNative.FPDFAnnot_SetFlags(hidden, oldFlags)
+                        PdfiumNative.FPDFPage_CloseAnnot(hidden)
+                    End If
+                End Try
                 Dim stride = PdfiumNative.FPDFBitmap_GetStride(bmp)
                 Dim buffer = PdfiumNative.FPDFBitmap_GetBuffer(bmp)
                 Dim bgra(w * h * 4 - 1) As Byte
