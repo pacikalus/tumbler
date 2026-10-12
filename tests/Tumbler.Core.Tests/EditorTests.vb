@@ -415,6 +415,95 @@ Public Class EditorTests
         End Using
     End Sub
 
+    <Theory>
+    <InlineData(0)>
+    <InlineData(1)>
+    <InlineData(2)>
+    <InlineData(3)>
+    Public Sub Comment_Resize_RewrapsTextInTheNewBox_OnRotatedPages(page As Integer)
+        Dim ed = OpenSample("rotated.pdf")
+        Dim text = "A fairly long comment that wraps onto several lines when its box is made narrow."
+        ed.AddComment(page, New PointF(60, 80), text, Color.Blue, 12, "Pacikalus")
+        Dim before = ed.Pages(page).Annotations.Single()
+
+        ' Narrow: more lines, so the box grows taller than asked if it has to.
+        Dim narrow As New RectangleF(before.DisplayRect.X, before.DisplayRect.Y, 90, 20)
+        ed.ResizeAnnotation(before, narrow)
+        Dim a = ed.Pages(page).Annotations.Single()
+        Assert.Equal(90, a.DisplayRect.Width, 1)
+        Assert.True(a.DisplayRect.Height > before.DisplayRect.Height + 20, "narrow box should be taller")
+        Assert.Equal(before.DisplayRect.X, a.DisplayRect.X, 1)
+        Assert.Equal(before.DisplayRect.Y, a.DisplayRect.Y, 1)
+        Assert.Equal(text, a.Contents)
+        Assert.Equal(Color.Blue.ToArgb(), a.Color.ToArgb())
+
+        ' The text is drawn inside the new box and nowhere to its right.
+        Using r As New PdfRenderer(ed.Bytes)
+            Dim img = r.Render(page, 1)
+            Dim inside = CountBlue(img, a.DisplayRect)
+            Dim right = CountBlue(img, New RectangleF(a.DisplayRect.Right + 2, a.DisplayRect.Y, 200, a.DisplayRect.Height))
+            Assert.True(inside > 100, $"expected text inside the box, found {inside} blue pixels")
+            Assert.Equal(0, right)
+        End Using
+
+        ' Wider and taller than the text needs: it keeps the size asked for.
+        ed.ResizeAnnotation(a, New RectangleF(a.DisplayRect.X, a.DisplayRect.Y, 300, 120))
+        Dim b = ed.Pages(page).Annotations.Single()
+        Assert.Equal(300, b.DisplayRect.Width, 1)
+        Assert.Equal(120, b.DisplayRect.Height, 1)
+    End Sub
+
+    <Fact>
+    Public Sub Comment_Resize_FromTheLeft_KeepsTheRightEdge_AndStaysOnThePage()
+        Dim ed = OpenSample()
+        ed.AddComment(0, New PointF(200, 100), "Short", Color.Red, 12, "Pacikalus")
+        Dim a = ed.Pages(0).Annotations.Single()
+        ' Too small: it grows to the minimum, leftwards, keeping the right edge.
+        Dim wanted = RectangleF.FromLTRB(a.DisplayRect.Right - 5, a.DisplayRect.Y, a.DisplayRect.Right, a.DisplayRect.Bottom)
+        Dim fit = ed.FitResize(a, wanted, anchorRight:=True, anchorBottom:=False)
+        Assert.Equal(a.DisplayRect.Right, fit.Right, 1)
+        Assert.True(fit.Width >= 24)
+        ' Far off the page: pulled back on.
+        Dim off = ed.FitResize(a, New RectangleF(-50, -50, 2000, 40), False, False)
+        Dim geo = ed.Pages(0).Geometry
+        Assert.True(off.X >= 0 AndAlso off.Y >= 0)
+        Assert.True(off.Right <= geo.DisplayWidth + 0.01)
+    End Sub
+
+    <Fact>
+    Public Sub Line_EndsCanBeDragged_AndStayOnThePage()
+        Dim ed = OpenSample()
+        ed.AddLine(0, New PointF(100, 100), New PointF(200, 150), Color.Red, 3, "Pacikalus")
+        Dim line = ed.Pages(0).Annotations.Single()
+        ed.SetLineEnds(line, New PointF(100, 100), New PointF(400, 300))
+        Dim moved = ed.Pages(0).Annotations.Single()
+        Assert.Equal(400, moved.LineEnd.X, 1)
+        Assert.Equal(300, moved.LineEnd.Y, 1)
+        Assert.Equal(100, moved.LineStart.X, 1)
+        Assert.Equal(3, moved.LineWidth, 2)
+        Dim geo = ed.Pages(0).Geometry
+        ed.SetLineEnds(moved, New PointF(-30, 100), New PointF(9999, 300))
+        Dim clamped = ed.Pages(0).Annotations.Single()
+        Assert.Equal(0, clamped.LineStart.X, 1)
+        Assert.Equal(geo.DisplayWidth, clamped.LineEnd.X, 1)
+        Using r As New PdfRenderer(ed.Bytes)
+            Dim img = r.Render(0, 1)
+            Dim c = PixelAt(img, CInt(geo.DisplayWidth / 2), 200)
+            Assert.True(c.R > 180 AndAlso c.G < 90, $"expected the red line across the page, got {c}")
+        End Using
+    End Sub
+
+    Private Shared Function CountBlue(img As RenderedPage, rect As RectangleF) As Integer
+        Dim n = 0
+        For y = Math.Max(0, CInt(rect.Top)) To Math.Min(img.Height, CInt(rect.Bottom)) - 1
+            For x = Math.Max(0, CInt(rect.Left)) To Math.Min(img.Width, CInt(rect.Right)) - 1
+                Dim c = PixelAt(img, x, y)
+                If c.B > 150 AndAlso c.R < 120 AndAlso c.G < 120 Then n += 1
+            Next
+        Next
+        Return n
+    End Function
+
     <Fact>
     Public Sub Line_MovesWithBothEnds_AndStopsAtThePageEdge()
         Dim ed = OpenSample()

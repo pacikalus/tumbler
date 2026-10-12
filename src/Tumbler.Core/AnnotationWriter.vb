@@ -241,6 +241,63 @@ Friend Module AnnotationWriter
         End Select
     End Sub
 
+    ''' <summary>
+    ''' The box a comment or text box gets when resized to <paramref name="wanted"/> (display points):
+    ''' at least wide enough for a word or two, at least tall enough for its re-wrapped text, and on the page.
+    ''' When it has to grow, it grows away from the edge that stays put (<paramref name="anchorRight"/>,
+    ''' <paramref name="anchorBottom"/>).
+    ''' </summary>
+    Friend Function FitResizedBox(geo As PageGeometry, wanted As RectangleF, text As String, fontSize As Double,
+                                  anchorRight As Boolean, anchorBottom As Boolean) As RectangleF
+        If fontSize <= 0 Then fontSize = 11
+        Dim minWidth = Math.Max(24.0, 2 * TextPadding + fontSize * 2)
+        Dim width = Math.Min(geo.DisplayWidth, Math.Max(minWidth, wanted.Width))
+        Dim height = Math.Min(geo.DisplayHeight, Math.Max(TextHeight(text, fontSize, width), wanted.Height))
+        Dim x = If(anchorRight, wanted.Right - width, wanted.X)
+        Dim y = If(anchorBottom, wanted.Bottom - height, wanted.Y)
+        x = Math.Max(0, Math.Min(x, geo.DisplayWidth - width))
+        y = Math.Max(0, Math.Min(y, geo.DisplayHeight - height))
+        Return New RectangleF(CSng(x), CSng(y), CSng(width), CSng(height))
+    End Function
+
+    ''' <summary>Height needed for text wrapped to a box of this width.</summary>
+    Friend Function TextHeight(text As String, fontSize As Double, boxWidth As Double) As Double
+        Dim lines = WrapText(text, fontSize, boxWidth - 2 * TextPadding).Count
+        Return 2 * TextPadding + fontSize * 1.05 + (Math.Max(1, lines) - 1) * fontSize * LineSpacing
+    End Function
+
+    ''' <summary>Gives a comment or text box a new box (display space) and redraws its text to fit.</summary>
+    Friend Sub Resize(doc As PdfDocument, geo As PageGeometry, annot As PdfDictionary, kind As AnnotationKind, box As RectangleF)
+        Dim text = annot.Elements.GetString("/Contents")
+        Dim fontSize = ReadFontSize(annot)
+        Dim color As Color
+        If kind = AnnotationKind.Comment Then
+            Dim own = ReadNumbers(annot.Elements.GetArray(CommentColorKey))
+            color = If(own.Count = 3, FromUnit(own(0), own(1), own(2)), ReadDaColor(annot, Color.Black))
+        Else
+            color = ReadDaColor(annot, Color.Black)
+        End If
+        annot.Elements("/Rect") = RectArray(doc, geo.ToPdfRect(box))
+        annot.Elements("/M") = New PdfString(PdfDate(Date.Now))
+        SetAppearance(doc, annot, BuildTextBoxAppearance(doc, geo.Rotation, box.Width, box.Height, text, color, fontSize,
+                                                         border:=kind = AnnotationKind.TextBox))
+    End Sub
+
+    ''' <summary>Moves the ends of a line (display space) and redraws it.</summary>
+    Friend Sub SetLineEnds(doc As PdfDocument, geo As PageGeometry, annot As PdfDictionary, fromPoint As PointF, toPoint As PointF)
+        Dim a = geo.ToPdf(fromPoint), b = geo.ToPdf(toPoint)
+        Dim ends As New List(Of Double) From {a.X, a.Y, b.X, b.Y}
+        Dim width = ReadLineWidth(annot)
+        Dim l As New PdfArray(doc)
+        For Each v In ends
+            l.Elements.Add(New PdfReal(Math.Round(v, 3)))
+        Next
+        annot.Elements("/L") = l
+        annot.Elements("/Rect") = RectArray(doc, LineRect(ends, width))
+        annot.Elements("/M") = New PdfString(PdfDate(Date.Now))
+        SetAppearance(doc, annot, BuildLineAppearance(doc, ends, width, ReadColor(annot, Color.Black)))
+    End Sub
+
     ''' <summary>Shifts an annotation by an offset in PDF page space.</summary>
     Friend Sub Move(doc As PdfDocument, annot As PdfDictionary, dx As Double, dy As Double)
         Dim r = ReadRect(annot)

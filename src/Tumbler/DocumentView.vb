@@ -33,6 +33,36 @@ Public Class AnnotationMoveEventArgs
     Public Property Offset As SizeF
 End Class
 
+''' <summary>
+''' A comment or text box given a new box (display points), or a line given new ends.
+''' The anchors say which edges stayed put, for when the box has to grow to fit its text.
+''' </summary>
+Public Class AnnotationResizeEventArgs
+    Inherits EventArgs
+
+    Public Property Annotation As AnnotationInfo
+    Public Property Rect As RectangleF
+    Public Property AnchorRight As Boolean
+    Public Property AnchorBottom As Boolean
+    Public Property LineStart As PointF
+    Public Property LineEnd As PointF
+End Class
+
+''' <summary>The grab points on a selected comment, text box or line.</summary>
+Public Enum ResizeHandle
+    None
+    Left
+    Right
+    Top
+    Bottom
+    TopLeft
+    TopRight
+    BottomLeft
+    BottomRight
+    LineStart
+    LineEnd
+End Enum
+
 ''' <summary>A right-click on the pages: the annotation under it (if any) and where it was.</summary>
 Public Class ViewMenuEventArgs
     Inherits EventArgs
@@ -82,6 +112,13 @@ Public Class DocumentView
     Private _moveStartClient As Point
     Private _moveOffset As SizeF             ' display points, already kept on the page
     Private _moveBackground As Bitmap        ' the page without the annotation being dragged
+    Private _dragChanged As Boolean          ' the mouse has actually moved since the drag began
+    Private _resizing As AnnotationInfo      ' being resized from one of its handles
+    Private _handle As ResizeHandle
+    Private _resizeStart As RectangleF       ' box before the resize, display points
+    Private _resizeRect As RectangleF        ' box the resize will give, already fitted to the text
+    Private _resizeLineStart As PointF
+    Private _resizeLineEnd As PointF
 
     Public Event CurrentPageChanged As EventHandler
     Public Event ZoomChanged As EventHandler
@@ -92,6 +129,7 @@ Public Class DocumentView
     Public Event SelectedAnnotationChanged As EventHandler
     Public Event MenuRequested As EventHandler(Of ViewMenuEventArgs)
     Public Event AnnotationMoveRequested As EventHandler(Of AnnotationMoveEventArgs)
+    Public Event AnnotationResizeRequested As EventHandler(Of AnnotationResizeEventArgs)
     Public Event CopyRequested As EventHandler
     Public Event PasteRequested As EventHandler
     Public Event DeleteAnnotationRequested As EventHandler
@@ -369,7 +407,8 @@ Public Class DocumentView
                 g.FillRectangle(shadow, r.Left + 3, r.Top + 3, r.Width, r.Height)
             End Using
             g.FillRectangle(Brushes.White, r)
-            Dim bmp = If(_moving IsNot Nothing AndAlso i = _moving.PageIndex, GetMoveBackground(), GetPageBitmap(i))
+            Dim dragged = If(_moving, _resizing)
+            Dim bmp = If(dragged IsNot Nothing AndAlso i = dragged.PageIndex, GetMoveBackground(), GetPageBitmap(i))
             If bmp IsNot Nothing Then
                 g.InterpolationMode = Drawing2D.InterpolationMode.Low
                 g.DrawImage(bmp, r)
@@ -377,7 +416,13 @@ Public Class DocumentView
         Next
 
         PaintOverlay(g)
-        If _moving IsNot Nothing Then PaintMovePreview(g) Else PaintSelection(g)
+        If _moving IsNot Nothing Then
+            PaintMovePreview(g)
+        ElseIf _resizing IsNot Nothing AndAlso _dragChanged Then
+            PaintResizePreview(g)
+        Else
+            PaintSelection(g)
+        End If
         PaintDropMarker(g)
         EvictCache(visible)
     End Sub
@@ -422,8 +467,118 @@ Public Class DocumentView
                 Dim r = PageToClient(a.PageIndex, a.DisplayRect)
                 r.Inflate(3, 3)
                 g.DrawRectangle(p, r.X, r.Y, r.Width, r.Height)
+                If PdfEditor.CanResize(a) Then PaintBoxHandles(g, r)
             End If
         End Using
+    End Sub
+
+    ''' <summary>Small squares on the corners and edges of a selected box: drag them to resize.</summary>
+    Private Sub PaintBoxHandles(g As Graphics, r As RectangleF)
+        Dim size = CSng(7 * DeviceDpi / 96.0)
+        Using fill As New SolidBrush(Color.White), edge As New Pen(Color.DodgerBlue, 1.5F)
+            For Each c In BoxHandlePoints(r).Values
+                Dim h As New RectangleF(c.X - size / 2, c.Y - size / 2, size, size)
+                g.FillRectangle(fill, h)
+                g.DrawRectangle(edge, h.X, h.Y, h.Width, h.Height)
+            Next
+        End Using
+    End Sub
+
+    Private Shared Function BoxHandlePoints(r As RectangleF) As Dictionary(Of ResizeHandle, PointF)
+        Dim cx = r.X + r.Width / 2, cy = r.Y + r.Height / 2
+        Return New Dictionary(Of ResizeHandle, PointF) From {
+            {ResizeHandle.TopLeft, New PointF(r.Left, r.Top)}, {ResizeHandle.Top, New PointF(cx, r.Top)},
+            {ResizeHandle.TopRight, New PointF(r.Right, r.Top)}, {ResizeHandle.Right, New PointF(r.Right, cy)},
+            {ResizeHandle.BottomRight, New PointF(r.Right, r.Bottom)}, {ResizeHandle.Bottom, New PointF(cx, r.Bottom)},
+            {ResizeHandle.BottomLeft, New PointF(r.Left, r.Bottom)}, {ResizeHandle.Left, New PointF(r.Left, cy)}}
+    End Function
+
+    ''' <summary>The handle of the selected comment, text box or line under a client point.</summary>
+    Private Function HandleAt(pt As Point) As ResizeHandle
+        Dim a = _selected
+        If a Is Nothing OrElse Not PdfEditor.CanResize(a) OrElse a.PageIndex >= _pageRects.Count Then Return ResizeHandle.None
+        Dim reach = CSng(Math.Max(6, 7 * DeviceDpi / 96.0))
+        Dim near = Function(c As PointF) Math.Abs(pt.X - c.X) <= reach AndAlso Math.Abs(pt.Y - c.Y) <= reach
+        If a.Kind = AnnotationKind.Line Then
+            If near(PageToClient(a.PageIndex, New RectangleF(a.LineEnd, SizeF.Empty)).Location) Then Return ResizeHandle.LineEnd
+            If near(PageToClient(a.PageIndex, New RectangleF(a.LineStart, SizeF.Empty)).Location) Then Return ResizeHandle.LineStart
+            Return ResizeHandle.None
+        End If
+        Dim r = PageToClient(a.PageIndex, a.DisplayRect)
+        r.Inflate(3, 3)
+        For Each pair In BoxHandlePoints(r)
+            If near(pair.Value) Then Return pair.Key
+        Next
+        Return ResizeHandle.None
+    End Function
+
+    Private Shared Function CursorFor(h As ResizeHandle) As Cursor
+        Select Case h
+            Case ResizeHandle.Left, ResizeHandle.Right : Return Cursors.SizeWE
+            Case ResizeHandle.Top, ResizeHandle.Bottom : Return Cursors.SizeNS
+            Case ResizeHandle.TopLeft, ResizeHandle.BottomRight : Return Cursors.SizeNWSE
+            Case ResizeHandle.TopRight, ResizeHandle.BottomLeft : Return Cursors.SizeNESW
+            Case ResizeHandle.LineStart, ResizeHandle.LineEnd : Return Cursors.Cross
+            Case Else : Return Cursors.Default
+        End Select
+    End Function
+
+    ''' <summary>
+    ''' While resizing: the comment's text re-wrapped in its new box (drawn the same way the
+    ''' PDF will draw it), or the line between its new ends.
+    ''' </summary>
+    Private Sub PaintResizePreview(g As Graphics)
+        Dim a = _resizing
+        Dim ppp = CSng(PixelsPerPoint)
+        Dim oldMode = g.SmoothingMode
+        g.SmoothingMode = Drawing2D.SmoothingMode.AntiAlias
+        If a.Kind = AnnotationKind.Line Then
+            Dim p1 = PageToClient(a.PageIndex, New RectangleF(_resizeLineStart, SizeF.Empty)).Location
+            Dim p2 = PageToClient(a.PageIndex, New RectangleF(_resizeLineEnd, SizeF.Empty)).Location
+            Using pen As New Pen(a.Color, CSng(Math.Max(1, a.LineWidth * ppp))) With {
+                    .StartCap = Drawing2D.LineCap.Round, .EndCap = Drawing2D.LineCap.Round}
+                g.DrawLine(pen, p1, p2)
+            End Using
+            Dim r = CSng(Math.Max(4, a.LineWidth * ppp / 2 + 3))
+            Using edge As New Pen(Color.DodgerBlue, 1.5F)
+                For Each c In {p1, p2}
+                    g.FillEllipse(Brushes.White, c.X - r, c.Y - r, 2 * r, 2 * r)
+                    g.DrawEllipse(edge, c.X - r, c.Y - r, 2 * r, 2 * r)
+                Next
+            End Using
+        Else
+            Dim box = PageToClient(a.PageIndex, _resizeRect)
+            If a.Kind = AnnotationKind.TextBox Then
+                Using border As New Pen(a.Color, Math.Max(1.0F, ppp))
+                    g.DrawRectangle(border, box.X, box.Y, box.Width, box.Height)
+                End Using
+            End If
+            Dim fontSize = CSng(If(a.FontSize > 0, a.FontSize, 11))
+            ' Arial has Helvetica's letter widths, so the lines break where the PDF's will.
+            Using font As New Font("Arial", fontSize * ppp, GraphicsUnit.Pixel), brush As New SolidBrush(a.Color),
+                  format = CType(StringFormat.GenericTypographic.Clone(), StringFormat)
+                format.FormatFlags = format.FormatFlags Or StringFormatFlags.NoWrap
+                Dim fam = font.FontFamily
+                Dim ascent = font.Size * fam.GetCellAscent(FontStyle.Regular) / fam.GetEmHeight(FontStyle.Regular)
+                Dim baseline = box.Y + (PdfEditor.TextPaddingPoints + fontSize * 0.8F) * ppp
+                Dim x = box.X + PdfEditor.TextPaddingPoints * ppp
+                Dim oldClip = g.Clip
+                g.SetClip(box)
+                g.TextRenderingHint = Drawing.Text.TextRenderingHint.AntiAlias
+                For Each line In PdfEditor.WrapForBox(a, _resizeRect.Width)
+                    g.DrawString(line, font, brush, x, baseline - ascent, format)
+                    baseline += fontSize * PdfEditor.TextLineSpacing * ppp
+                Next
+                g.Clip = oldClip
+            End Using
+            Using p As New Pen(Color.DodgerBlue, 1.5F) With {.DashStyle = Drawing2D.DashStyle.Dash}
+                Dim r = box
+                r.Inflate(3, 3)
+                g.DrawRectangle(p, r.X, r.Y, r.Width, r.Height)
+                PaintBoxHandles(g, r)
+            End Using
+        End If
+        g.SmoothingMode = oldMode
     End Sub
 
     Private Sub PaintDropMarker(g As Graphics)
@@ -474,8 +629,8 @@ Public Class DocumentView
     ''' stay behind at the old place. Made once the mouse actually moves.
     ''' </summary>
     Private Function GetMoveBackground() As Bitmap
-        Dim a = _moving
-        If _moveOffset.IsEmpty AndAlso _moveBackground Is Nothing Then Return GetPageBitmap(a.PageIndex)
+        Dim a = If(_moving, _resizing)
+        If Not _dragChanged AndAlso _moveBackground Is Nothing Then Return GetPageBitmap(a.PageIndex)
         If _moveBackground Is Nothing Then
             Try
                 _moveBackground = ImageUtil.ToBitmap(_renderer.Render(a.PageIndex, PixelsPerPoint, a.AnnotIndex))
@@ -488,6 +643,9 @@ Public Class DocumentView
 
     Private Sub EndMove()
         _moving = Nothing
+        _resizing = Nothing
+        _handle = ResizeHandle.None
+        _dragChanged = False
         If _moveBackground IsNot Nothing Then
             _moveBackground.Dispose()
             _moveBackground = Nothing
@@ -626,6 +784,23 @@ Public Class DocumentView
         End If
         If e.Button <> MouseButtons.Left Then Return
 
+        ' The handles of a selected comment, text box or line resize it.
+        If _tool <> ToolMode.Highlight Then
+            Dim h = HandleAt(e.Location)
+            If h <> ResizeHandle.None Then
+                _resizing = _selected
+                _handle = h
+                _moveStartClient = e.Location
+                _resizeStart = _selected.DisplayRect
+                _resizeRect = _resizeStart
+                _resizeLineStart = _selected.LineStart
+                _resizeLineEnd = _selected.LineEnd
+                _dragChanged = False
+                Capture = True
+                Return
+            End If
+        End If
+
         ' With any tool but Highlight, pressing on a comment, line or note picks it up:
         ' drag to move it, click to select it, double-click to edit it.
         If page >= 0 AndAlso _tool <> ToolMode.Highlight Then
@@ -689,7 +864,15 @@ Public Class DocumentView
         If _moving IsNot Nothing Then
             Dim ppp = PixelsPerPoint
             _moveOffset = _editor.ClampMove(_moving, CSng((e.X - _moveStartClient.X) / ppp), CSng((e.Y - _moveStartClient.Y) / ppp))
+            If Not _moveOffset.IsEmpty Then _dragChanged = True
             Cursor = Cursors.SizeAll
+            Invalidate()
+            Return
+        End If
+
+        If _resizing IsNot Nothing Then
+            UpdateResize(e.Location)
+            Cursor = CursorFor(_handle)
             Invalidate()
             Return
         End If
@@ -713,6 +896,14 @@ Public Class DocumentView
             Return
         End If
 
+        If _tool <> ToolMode.Highlight Then
+            Dim hover = HandleAt(e.Location)
+            If hover <> ResizeHandle.None Then
+                Cursor = CursorFor(hover)
+                Return
+            End If
+        End If
+
         If _tool <> ToolMode.Highlight AndAlso _tool <> ToolMode.Select Then
             Dim page As Integer
             Dim pt = ClientToPage(e.Location, page)
@@ -730,14 +921,64 @@ Public Class DocumentView
                     _tip.Hide(Me)
                 Else
                     Dim text = If(String.IsNullOrWhiteSpace(hit.Contents), "(no text)", hit.Contents)
-                    _tip.Show($"{hit.KindName} by {If(hit.Author, "?")}" & vbCrLf & text & vbCrLf & "Drag to move, double-click to edit, right-click to copy", Me, e.X + 16, e.Y + 16)
+                    _tip.Show($"{hit.KindName} by {If(hit.Author, "?")}" & vbCrLf & text & vbCrLf & "Drag to move, drag its handles to resize, double-click to edit", Me, e.X + 16, e.Y + 16)
                 End If
             End If
         End If
     End Sub
 
+    ''' <summary>Works out the new box or line ends from where the mouse is now.</summary>
+    Private Sub UpdateResize(mouse As Point)
+        Dim a = _resizing
+        Dim ppp = PixelsPerPoint
+        Dim dx = CSng((mouse.X - _moveStartClient.X) / ppp), dy = CSng((mouse.Y - _moveStartClient.Y) / ppp)
+        If dx <> 0 OrElse dy <> 0 Then _dragChanged = True
+        If a.Kind = AnnotationKind.Line Then
+            Dim geo = _editor.Pages(a.PageIndex).Geometry
+            Dim moving = If(_handle = ResizeHandle.LineStart, a.LineStart, a.LineEnd)
+            Dim fixedEnd = If(_handle = ResizeHandle.LineStart, a.LineEnd, a.LineStart)
+            Dim p As New PointF(CSng(Math.Max(0, Math.Min(geo.DisplayWidth, moving.X + dx))),
+                                CSng(Math.Max(0, Math.Min(geo.DisplayHeight, moving.Y + dy))))
+            If (ModifierKeys And Keys.Shift) = Keys.Shift Then p = SnapLine(fixedEnd, p)
+            If _handle = ResizeHandle.LineStart Then _resizeLineStart = p Else _resizeLineEnd = p
+            Return
+        End If
+        Dim l = _resizeStart.Left, t = _resizeStart.Top, r = _resizeStart.Right, b = _resizeStart.Bottom
+        Select Case _handle
+            Case ResizeHandle.Left, ResizeHandle.TopLeft, ResizeHandle.BottomLeft : l = Math.Min(l + dx, r - 1)
+            Case ResizeHandle.Right, ResizeHandle.TopRight, ResizeHandle.BottomRight : r = Math.Max(r + dx, l + 1)
+        End Select
+        Select Case _handle
+            Case ResizeHandle.Top, ResizeHandle.TopLeft, ResizeHandle.TopRight : t = Math.Min(t + dy, b - 1)
+            Case ResizeHandle.Bottom, ResizeHandle.BottomLeft, ResizeHandle.BottomRight : b = Math.Max(b + dy, t + 1)
+        End Select
+        _resizeRect = _editor.FitResize(a, RectangleF.FromLTRB(l, t, r, b), AnchorsRight(_handle), AnchorsBottom(_handle))
+    End Sub
+
+    ''' <summary>Dragging a left-side handle keeps the right edge where it is.</summary>
+    Private Shared Function AnchorsRight(h As ResizeHandle) As Boolean
+        Return h = ResizeHandle.Left OrElse h = ResizeHandle.TopLeft OrElse h = ResizeHandle.BottomLeft
+    End Function
+
+    Private Shared Function AnchorsBottom(h As ResizeHandle) As Boolean
+        Return h = ResizeHandle.Top OrElse h = ResizeHandle.TopLeft OrElse h = ResizeHandle.TopRight
+    End Function
+
     Protected Overrides Sub OnMouseUp(e As MouseEventArgs)
         MyBase.OnMouseUp(e)
+        If _resizing IsNot Nothing Then
+            Dim resized As New AnnotationResizeEventArgs With {
+                .Annotation = _resizing, .Rect = _resizeRect,
+                .AnchorRight = AnchorsRight(_handle), .AnchorBottom = AnchorsBottom(_handle),
+                .LineStart = _resizeLineStart, .LineEnd = _resizeLineEnd}
+            Dim changed = _dragChanged
+            EndMove()
+            Capture = False
+            Cursor = Cursors.Default
+            Invalidate()
+            If changed Then RaiseEvent AnnotationResizeRequested(Me, resized)
+            Return
+        End If
         If _moving IsNot Nothing Then
             Dim a = _moving, offset = _moveOffset
             EndMove()

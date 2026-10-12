@@ -81,6 +81,7 @@ Public Class MainForm
         AddHandler _view.AnnotationActivated, Sub(s, e) EditAnnotation(e.Annotation)
         AddHandler _view.MenuRequested, AddressOf OnViewMenuRequested
         AddHandler _view.AnnotationMoveRequested, Sub(s, e) RunEdit(Sub() _editor.MoveAnnotation(e.Annotation, e.Offset.Width, e.Offset.Height))
+        AddHandler _view.AnnotationResizeRequested, AddressOf OnAnnotationResizeRequested
         AddHandler _view.CopyRequested, Sub() CopySelectedAnnotation()
         AddHandler _view.PasteRequested, Sub() PasteAnnotation()
         AddHandler _view.DeleteAnnotationRequested, Sub() DeleteSelectedAnnotation()
@@ -374,6 +375,14 @@ Public Class MainForm
     End Sub
 
 #End Region
+
+    Private Sub OnAnnotationResizeRequested(sender As Object, e As AnnotationResizeEventArgs)
+        If e.Annotation.Kind = AnnotationKind.Line Then
+            RunEdit(Sub() _editor.SetLineEnds(e.Annotation, e.LineStart, e.LineEnd))
+        Else
+            RunEdit(Sub() _editor.ResizeAnnotation(e.Annotation, e.Rect, e.AnchorRight, e.AnchorBottom))
+        End If
+    End Sub
 
 #Region "Updates"
 

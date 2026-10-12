@@ -438,6 +438,58 @@ Public NotInheritable Class PdfEditor
              End Sub)
     End Sub
 
+    ''' <summary>True for the kinds that can be resized: comments and text boxes by their box, lines by their ends.</summary>
+    Public Shared Function CanResize(a As AnnotationInfo) As Boolean
+        Return a IsNot Nothing AndAlso (a.Kind = AnnotationKind.Comment OrElse a.Kind = AnnotationKind.TextBox OrElse
+                                        a.Kind = AnnotationKind.Line)
+    End Function
+
+    ''' <summary>
+    ''' The box a comment or text box will really get if resized to <paramref name="wanted"/>:
+    ''' never smaller than its re-wrapped text, and kept on the page. Use it to preview a resize.
+    ''' </summary>
+    Public Function FitResize(a As AnnotationInfo, wanted As RectangleF, anchorRight As Boolean, anchorBottom As Boolean) As RectangleF
+        Return AnnotationWriter.FitResizedBox(_pages(a.PageIndex).Geometry, wanted, a.Contents, a.FontSize, anchorRight, anchorBottom)
+    End Function
+
+    ''' <summary>The text of a comment or text box broken into lines for a box of this width, as it will be drawn.</summary>
+    Public Shared Function WrapForBox(a As AnnotationInfo, boxWidth As Single) As IReadOnlyList(Of String)
+        Return AnnotationWriter.WrapText(a.Contents, If(a.FontSize > 0, a.FontSize, 11), boxWidth - 2 * TextPaddingPoints)
+    End Function
+
+    ''' <summary>Space between a comment's box and its text, in points.</summary>
+    Public Const TextPaddingPoints As Single = 4
+    ''' <summary>Distance between lines of comment text, as a multiple of the font size.</summary>
+    Public Const TextLineSpacing As Single = 1.2
+
+    ''' <summary>Gives a comment or text box a new size and place (display points); the text re-wraps to fit.</summary>
+    Public Sub ResizeAnnotation(annotation As AnnotationInfo, wanted As RectangleF,
+                                Optional anchorRight As Boolean = False, Optional anchorBottom As Boolean = False)
+        If annotation.Kind <> AnnotationKind.Comment AndAlso annotation.Kind <> AnnotationKind.TextBox Then
+            Throw New InvalidOperationException("Only comments and text boxes can be resized.")
+        End If
+        Dim box = FitResize(annotation, wanted, anchorRight, anchorBottom)
+        Edit(Sub(doc)
+                 Dim page = doc.Pages(annotation.PageIndex)
+                 AnnotationWriter.Resize(doc, GetGeometry(page), FindAnnotation(page, annotation), annotation.Kind, box)
+             End Sub)
+    End Sub
+
+    ''' <summary>Moves one or both ends of a line (display points; kept on the page).</summary>
+    Public Sub SetLineEnds(annotation As AnnotationInfo, fromPoint As PointF, toPoint As PointF)
+        If annotation.Kind <> AnnotationKind.Line Then Throw New InvalidOperationException("Only lines have ends to move.")
+        Dim geo = _pages(annotation.PageIndex).Geometry
+        Dim a = ClampToPage(geo, fromPoint), b = ClampToPage(geo, toPoint)
+        Edit(Sub(doc)
+                 Dim page = doc.Pages(annotation.PageIndex)
+                 AnnotationWriter.SetLineEnds(doc, GetGeometry(page), FindAnnotation(page, annotation), a, b)
+             End Sub)
+    End Sub
+
+    Private Shared Function ClampToPage(geo As PageGeometry, p As PointF) As PointF
+        Return New PointF(CSng(Math.Max(0, Math.Min(geo.DisplayWidth, p.X))), CSng(Math.Max(0, Math.Min(geo.DisplayHeight, p.Y))))
+    End Function
+
     ''' <summary>Changes the text and colour of a note, text box or highlight.</summary>
     Public Sub UpdateAnnotation(annotation As AnnotationInfo, text As String, color As Color, Optional fontSize As Double = 0)
         If Not annotation.CanEdit Then Throw New InvalidOperationException("Tumbler can only edit its own kinds of comments.")
