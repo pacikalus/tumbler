@@ -13,7 +13,9 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <!-- Lets the project build on non-Windows machines too (it still only runs on Windows). -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>1.4.6</Version>
+    <!-- The version lives in version.txt; every build raises its last number (see RaisePatchVersion). -->
+    <VersionFile>$(MSBuildProjectDirectory)\version.txt</VersionFile>
+    <Version>$([System.IO.File]::ReadAllText('$(VersionFile)').Trim())</Version>
     <Product>Tumbler</Product>
     <Description>View and edit PDF files: pages, rotation, comments, highlights.</Description>
     <ApplicationIcon>Tumbler.ico</ApplicationIcon>
@@ -37,5 +39,25 @@
   <ItemGroup>
     <ProjectReference Include="..\Tumbler.Core\Tumbler.Core.vbproj" />
   </ItemGroup>
+
+  <!--
+    Every build raises the patch number, the last one (1.4.6 -> 1.4.7), saves it back to
+    version.txt and stamps the new number into Tumbler.exe. Visual Studio's background
+    builds (the ones that only refresh IntelliSense) don't count.
+  -->
+  <Target Name="RaisePatchVersion" BeforeTargets="BeforeBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_OldVersion>$([System.IO.File]::ReadAllText('$(VersionFile)').Trim())</_OldVersion>
+      <_VersionBase>$([System.Text.RegularExpressions.Regex]::Replace('$(_OldVersion)', '\.\d+$', ''))</_VersionBase>
+      <_Patch>$([System.Text.RegularExpressions.Regex]::Match('$(_OldVersion)', '\d+$').Value)</_Patch>
+      <Version>$(_VersionBase).$([MSBuild]::Add($(_Patch), 1))</Version>
+      <VersionPrefix>$(Version)</VersionPrefix>
+      <AssemblyVersion>$(Version).0</AssemblyVersion>
+      <FileVersion>$(Version).0</FileVersion>
+      <InformationalVersion>$(Version)</InformationalVersion>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(VersionFile)" Lines="$(Version)" Overwrite="true" />
+    <Message Importance="high" Text="Tumbler version $(Version)" />
+  </Target>
 
 </Project>

@@ -64,7 +64,7 @@ The installer:
 - adds Tumbler to the "Open with" menu for PDFs, without changing their default PDF app;
 - shows the licence, and can be removed from Settings > Apps.
 
-The version comes from `<Version>` in `src\Tumbler\Tumbler.vbproj` (see [Versions](#versions)).
+The version comes from `src\Tumbler\version.txt` (see [Versions](#versions)).
 
 ## Updates
 
@@ -104,14 +104,10 @@ code-signing certificate. There are three levels:
 
 ## Versions
 
-Every commit raises the patch version, the last number, by one (1.1.1, 1.1.2, 1.1.3 ...).
-For a bigger release, raise the middle number by hand. The version lives in
-`src/Tumbler/Tumbler.vbproj`, shows on the About page, and names the installer
-(`Tumbler-Setup-1.1.1.exe`). A git hook does the counting; turn it on once in each clone with:
-
-```
-git config core.hooksPath .githooks
-```
+Every build raises the patch version, the last number, by one (1.4.6, 1.4.7, 1.4.8 ...),
+whether from Visual Studio, `dotnet build` or Make Installer. For a bigger release, change the
+middle number by hand. The version lives in `src/Tumbler/version.txt`, shows on the About page,
+and names the installer (`Tumbler-Setup-1.4.7.exe`).
 
 ## Libraries
 

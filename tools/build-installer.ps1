@@ -38,13 +38,12 @@ try {
         & (Join-Path $PSScriptRoot 'make-test-certificate.ps1') -Name $env:USERNAME
     }
 
-    # The version comes from src\Tumbler\Tumbler.vbproj.
-    [xml]$proj = Get-Content (Join-Path $root 'src\Tumbler\Tumbler.vbproj')
-    $version = ($proj.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
-    if (-not $version) { $version = '1.0.0' }
-
     $appDir = Join-Path $root 'publish-installer'
     & (Join-Path $PSScriptRoot 'publish.ps1') -Output $appDir -SelfContained -NoZip
+
+    # The build just raised the version in src\Tumbler\version.txt; read the new one.
+    $version = (Get-Content (Join-Path $root 'src\Tumbler\version.txt') -Raw).Trim()
+    if (-not $version) { $version = '1.0.0' }
 
     Write-Host ""
     Write-Host "Making the setup program for Tumbler $version ..." -ForegroundColor Cyan
