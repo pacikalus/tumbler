@@ -4,7 +4,6 @@ Imports System.Reflection
 ''' <summary>Who made Tumbler and how to reach them. Shown in Help > About.</summary>
 Public Module AppInfo
     Public Const AuthorName As String = "Pacikalus"
-    Public Const AuthorNameMeaning As String = "Pa cik alus? is Latvian for ""How much is the beer?"""
     Public Const CoAuthor As String = "with Claude by Anthropic, co-author"
     Public Const AuthorEmail As String = "pacikalus@gmail.com"
     Public Const ProjectUrl As String = "https://github.com/pacikalus/tumbler"
@@ -67,7 +66,6 @@ Public Class AboutDialog
             End Using
             body.Controls.Add(avatar)
             body.Controls.Add(Centered(AppInfo.AuthorName, New Font(Font.FontFamily, 13.0F, FontStyle.Bold), Ink, New Padding(0, 2, 0, 0)))
-            body.Controls.Add(Centered(AppInfo.AuthorNameMeaning, New Font(Font.FontFamily, 8.25F, FontStyle.Italic), Muted, New Padding(0, 1, 0, 0)))
             body.Controls.Add(Centered(AppInfo.CoAuthor, New Font(Font.FontFamily, 9.0F), Muted, New Padding(0, 2, 0, 8)))
         Else
             body.Controls.Add(New Label With {.AutoSize = True, .Margin = New Padding(0, 10, 0, 0)})

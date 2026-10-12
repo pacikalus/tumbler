@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-<!-- Pacikalus: "Pa cik alus?" is Latvian for "How much is the beer?".
-     A painted, game-style icon: a tavern tankard in front of Riga's Powder Tower at sunset. -->
+<!-- Pacikalus: a painted, game-style icon of a tavern tankard in front of Riga's Powder Tower at sunset. -->
 <defs>
   <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#1a2448"/><stop offset="0.3" stop-color="#4a3368"/>
