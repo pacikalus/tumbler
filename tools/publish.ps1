@@ -19,14 +19,18 @@ param(
     [string]$Thumbprint,
     [string]$PfxPath,
     [string]$TimestampServer = 'http://timestamp.digicert.com',
-    [string]$Output = (Join-Path (Split-Path $PSScriptRoot -Parent) 'publish')
+    [string]$Output = (Join-Path (Split-Path $PSScriptRoot -Parent) 'publish'),
+    # Include .NET itself, so the PC running Tumbler needs nothing installed (used for the installer).
+    [switch]$SelfContained,
+    [switch]$NoZip
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 
 Write-Host "Building..." -ForegroundColor Cyan
 if (Test-Path $Output) { Remove-Item $Output -Recurse -Force }
-dotnet publish (Join-Path $root 'src\Tumbler\Tumbler.vbproj') -c Release -r win-x64 --self-contained false -o $Output
+$sc = if ($SelfContained) { 'true' } else { 'false' }
+dotnet publish (Join-Path $root 'src\Tumbler\Tumbler.vbproj') -c Release -r win-x64 --self-contained $sc -o $Output
 if ($LASTEXITCODE -ne 0) { throw "Build failed." }
 Get-ChildItem $Output -Filter *.pdb | Remove-Item
 
@@ -64,6 +68,10 @@ if ($cert) {
     }
 }
 
+if ($NoZip) {
+    Write-Host "Done: $Output" -ForegroundColor Green
+    return
+}
 $zip = Join-Path $root 'Tumbler-win-x64.zip'
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path (Join-Path $Output '*') -DestinationPath $zip

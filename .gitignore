@@ -13,3 +13,5 @@ publish/
 *.p12
 *.key
 *.cer
+publish-installer/
+dist/

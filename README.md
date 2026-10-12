@@ -50,6 +50,21 @@ To make a folder you can copy to another PC (it needs the .NET 8 Desktop Runtime
 dotnet publish src\Tumbler -c Release -r win-x64 --self-contained false -o publish
 ```
 
+## Making the installer
+
+Double-click **Make Installer.bat**. It builds Tumbler with .NET included, signs it, and makes
+`dist\Tumbler-Setup-<version>.exe` (about 50 MB), the one file to give to other people. The first
+time, it installs [Inno Setup](https://jrsoftware.org/isinfo.php) (free) to build the setup program.
+
+The installer:
+- installs for the current user without an admin prompt, or for all users if they choose;
+- adds Tumbler to the Start menu, and optionally to the desktop;
+- adds Tumbler to the "Open with" menu for PDFs, without changing their default PDF app;
+- shows the licence, and can be removed from Settings > Apps.
+
+The version comes from `<Version>` in `src\Tumbler\Tumbler.vbproj`; raise it before each release
+so the new installer upgrades the old one.
+
 ## Signing (the "Unknown publisher" warning)
 
 Windows shows *Unknown publisher* for any program that is not signed with a
