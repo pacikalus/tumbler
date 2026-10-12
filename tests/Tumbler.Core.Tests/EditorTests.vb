@@ -354,6 +354,72 @@ Public Class EditorTests
         Assert.Equal(612, Math.Max(copy.LineStart.X, copy.LineEnd.X), 1)
     End Sub
 
+    <Theory>
+    <InlineData(0)>
+    <InlineData(1)>
+    <InlineData(2)>
+    <InlineData(3)>
+    Public Sub Comment_CanBeDraggedToANewPlace_OnRotatedPages(page As Integer)
+        Dim ed = OpenSample("rotated.pdf")
+        ed.AddComment(page, New PointF(100, 100), "Move me", Color.Blue, 14, "Mike")
+        Dim before = ed.Pages(page).Annotations.Single()
+        ed.MoveAnnotation(before, 80, 150)
+        Dim after = ed.Pages(page).Annotations.Single()
+        Assert.Equal(before.DisplayRect.Left + 80, after.DisplayRect.Left, 1)
+        Assert.Equal(before.DisplayRect.Top + 150, after.DisplayRect.Top, 1)
+        Assert.Equal(before.DisplayRect.Width, after.DisplayRect.Width, 1)
+        Assert.Equal("Move me", after.Contents)
+
+        ' The text is drawn at the new place, not the old one.
+        Using r As New PdfRenderer(ed.Bytes)
+            Dim img = r.Render(page, 1)
+            Dim CountBlue = Function(rect As RectangleF)
+                                Dim n = 0
+                                For y = CInt(rect.Top) To CInt(rect.Bottom) - 1
+                                    For x = CInt(rect.Left) To CInt(rect.Right) - 1
+                                        Dim c = PixelAt(img, x, y)
+                                        If c.B > 150 AndAlso c.R < 120 AndAlso c.G < 120 Then n += 1
+                                    Next
+                                Next
+                                Return n
+                            End Function
+            Assert.True(CountBlue(after.DisplayRect) > 30, "expected the comment at its new place")
+            Assert.Equal(0, CountBlue(before.DisplayRect))
+        End Using
+    End Sub
+
+    <Fact>
+    Public Sub Line_MovesWithBothEnds_AndStopsAtThePageEdge()
+        Dim ed = OpenSample()
+        ed.AddLine(0, New PointF(100, 100), New PointF(200, 150), Color.Red, 2, "Mike")
+        Dim line = ed.Pages(0).Annotations.Single()
+        ed.MoveAnnotation(line, 50, -20)
+        line = ed.Pages(0).Annotations.Single()
+        Assert.Equal(150, line.LineStart.X, 1)
+        Assert.Equal(80, line.LineStart.Y, 1)
+        Assert.Equal(250, line.LineEnd.X, 1)
+        Assert.Equal(130, line.LineEnd.Y, 1)
+
+        ' Dragged far off the top-left corner: it stops at the edge.
+        ed.MoveAnnotation(line, -1000, -1000)
+        line = ed.Pages(0).Annotations.Single()
+        Assert.Equal(0, Math.Min(line.LineStart.X, line.LineEnd.X), 1)
+        Assert.Equal(0, Math.Min(line.LineStart.Y, line.LineEnd.Y), 1)
+        Using r As New PdfRenderer(ed.Bytes)
+            Dim c = PixelAt(r.Render(0, 1), 50, 25)
+            Assert.True(c.R > 200 AndAlso c.G < 80, $"expected the moved line to be drawn, got {c}")
+        End Using
+    End Sub
+
+    <Fact>
+    Public Sub Highlights_CannotBeMoved()
+        Dim ed = OpenSample()
+        ed.AddHighlight(0, {TextSelection.AreaQuad(New RectangleF(72, 100, 100, 20))}, Color.Yellow, "Mike")
+        Dim h = ed.Pages(0).Annotations.Single()
+        Assert.False(PdfEditor.CanMove(h))
+        Assert.Throws(Of InvalidOperationException)(Sub() ed.MoveAnnotation(h, 10, 10))
+    End Sub
+
     <Fact>
     Public Sub Highlights_CannotBeCopied()
         Dim ed = OpenSample()

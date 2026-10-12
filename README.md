@@ -21,7 +21,8 @@ VB.NET, WinForms, .NET 8.
 | Draw lines | **Line** tool: drag from one end to the other. Hold Shift to keep it straight across, straight down or at 45°. **Colour** and **Thickness** (1, 2, 4 or 8 pt) apply to new lines. |
 | Highlight text | **Highlight** tool: drag across text. Where there is no text (a scan), drag a box instead. |
 | Insert pages from other files | **Insert pages…**: choose a PDF, a page range (`all`, `1-3, 5`), and where to put them. Or drag PDFs from Explorer (any screen) onto the window. Over the pages or the page strip, a blue line shows where they will go; move the mouse to choose, and the view scrolls when you reach the top or bottom edge. Dropped anywhere else, they go at the end. |
-| Edit or remove comments | **Select** tool: click a comment, line or highlight to select it (blue outline), double-click (or press Enter) to change its text or colour, Delete to remove it. Right-click for the same choices. The **Comments** panel on the right lists them all. |
+| Edit or remove comments | **Select** tool: click a comment, line or highlight to select it (blue outline), drag to move it, double-click (or press Enter) to change its text or colour, Delete to remove it. Right-click for the same choices. The **Comments** panel on the right lists them all. |
+| Move comments and lines | Press on a comment, line or sticky note and drag it to a new place. This works with any tool except Highlight, so you can place a comment and then drag it straight away. A new comment or line is selected as soon as it is added. |
 | Copy comments and lines | Select a comment or line and press **Ctrl+C** (or right-click > Copy). Point the mouse where the copy should go, on any page, and press **Ctrl+V** (or right-click there > Paste here). Pressing Ctrl+V again without moving the mouse steps each copy down and right. Comment text is also put on the Windows clipboard. |
 | Undo / redo | Ctrl+Z / Ctrl+Y, up to 30 steps. |
 
@@ -39,7 +40,7 @@ You need the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) on W
 ```
 dotnet build Tumbler.sln
 dotnet run --project src\Tumbler
-dotnet test                         # 36 tests for the PDF engine
+dotnet test                         # 42 tests for the PDF engine
 ```
 
 Or open `Tumbler.sln` in Visual Studio and press F5.

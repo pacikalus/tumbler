@@ -241,7 +241,34 @@ Friend Module AnnotationWriter
         End Select
     End Sub
 
+    ''' <summary>Shifts an annotation by an offset in PDF page space.</summary>
+    Friend Sub Move(doc As PdfDocument, annot As PdfDictionary, dx As Double, dy As Double)
+        Dim r = ReadRect(annot)
+        annot.Elements("/Rect") = RectArray(doc, PdfRect.FromCorners(r.X1 + dx, r.Y1 + dy, r.X2 + dx, r.Y2 + dy))
+        annot.Elements("/M") = New PdfString(PdfDate(Date.Now))
+        If annot.Elements.GetName("/Subtype") = "/Line" Then
+            ' Line appearances are drawn in page space, so the ends and drawing move too.
+            Dim ends = ReadNumbers(annot.Elements.GetArray("/L"))
+            If ends.Count >= 4 Then
+                Dim moved As New List(Of Double) From {ends(0) + dx, ends(1) + dy, ends(2) + dx, ends(3) + dy}
+                Dim l As New PdfArray(doc)
+                For Each v In moved
+                    l.Elements.Add(New PdfReal(Math.Round(v, 3)))
+                Next
+                annot.Elements("/L") = l
+                SetAppearance(doc, annot, BuildLineAppearance(doc, moved, ReadLineWidth(annot), ReadColor(annot, Color.Black)))
+            End If
+        End If
+        ' A sticky note's pop-up window travels with it.
+        Dim popup = TryCast(annot.Elements.GetObject("/Popup"), PdfDictionary)
+        If popup IsNot Nothing Then
+            Dim pr = ReadRect(popup)
+            popup.Elements("/Rect") = RectArray(doc, PdfRect.FromCorners(pr.X1 + dx, pr.Y1 + dy, pr.X2 + dx, pr.Y2 + dy))
+        End If
+    End Sub
+
 #End Region
+
 
 #Region "Appearance streams"
 

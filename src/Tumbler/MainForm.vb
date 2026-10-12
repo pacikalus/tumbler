@@ -76,6 +76,7 @@ Public Class MainForm
         AddHandler _view.LineRequested, AddressOf OnLineRequested
         AddHandler _view.AnnotationActivated, Sub(s, e) EditAnnotation(e.Annotation)
         AddHandler _view.MenuRequested, AddressOf OnViewMenuRequested
+        AddHandler _view.AnnotationMoveRequested, Sub(s, e) RunEdit(Sub() _editor.MoveAnnotation(e.Annotation, e.Offset.Width, e.Offset.Height))
         AddHandler _view.CopyRequested, Sub() CopySelectedAnnotation()
         AddHandler _view.PasteRequested, Sub() PasteAnnotation()
         AddHandler _view.DeleteAnnotationRequested, Sub() DeleteSelectedAnnotation()
@@ -755,9 +756,14 @@ Public Class MainForm
         _lastPaste = (pageIndex, point)
         Dim page = pageIndex
         Dim at As New PointF(point.X + 12 * _pasteStep, point.Y + 12 * _pasteStep)
-        Dim before = _editor.Pages(page).Annotations.Count
-        RunEdit(Sub() _editor.PasteAnnotation(_clip, page, at, _settings.Author))
-        Dim annots = _editor.Pages(page).Annotations
+        AddAndSelect(page, Sub() _editor.PasteAnnotation(_clip, page, at, _settings.Author))
+    End Sub
+
+    ''' <summary>Runs an edit that adds an annotation to a page, then selects the new one.</summary>
+    Private Sub AddAndSelect(pageIndex As Integer, add As Action)
+        Dim before = _editor.Pages(pageIndex).Annotations.Count
+        RunEdit(add)
+        Dim annots = _editor.Pages(pageIndex).Annotations
         If annots.Count > before Then _view.SelectedAnnotation = annots.Last()
     End Sub
 
@@ -811,12 +817,13 @@ Public Class MainForm
             RememberColor(AnnotationKind.Note, dlg.SelectedColor)
             _settings.CommentFontSize = dlg.FontSizeValue
             _settings.Save()
-            RunEdit(Sub() _editor.AddComment(e.PageIndex, e.Point, dlg.CommentText, dlg.SelectedColor, dlg.FontSizeValue, _settings.Author))
+            ' Selected straight away, so it can be dragged into place.
+            AddAndSelect(e.PageIndex, Sub() _editor.AddComment(e.PageIndex, e.Point, dlg.CommentText, dlg.SelectedColor, dlg.FontSizeValue, _settings.Author))
         End Using
     End Sub
 
     Private Sub OnLineRequested(sender As Object, e As PageEventArgs)
-        RunEdit(Sub() _editor.AddLine(e.PageIndex, e.Point, e.EndPoint, Color.FromArgb(_settings.LineColor), _settings.LineWidth, _settings.Author))
+        AddAndSelect(e.PageIndex, Sub() _editor.AddLine(e.PageIndex, e.Point, e.EndPoint, Color.FromArgb(_settings.LineColor), _settings.LineWidth, _settings.Author))
     End Sub
 
     Private Sub RememberColor(kind As AnnotationKind, c As Color)
@@ -948,7 +955,7 @@ Public Class MainForm
         Dim toolText As String
         Select Case _view.Tool
             Case ToolMode.Highlight : toolText = "Drag across text to highlight it"
-            Case ToolMode.Note : toolText = "Click on the page to add a comment"
+            Case ToolMode.Note : toolText = "Click on the page to add a comment; drag a comment to move it"
             Case ToolMode.Line : toolText = "Drag to draw a line; hold Shift to keep it straight"
             Case Else : toolText = "Click a comment or line to select it, Ctrl+C / Ctrl+V to copy it; double-click to edit"
         End Select

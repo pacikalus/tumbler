@@ -397,6 +397,47 @@ Public NotInheritable Class PdfEditor
         End Select
     End Sub
 
+    ''' <summary>True for the kinds that can be dragged to a new place.</summary>
+    Public Shared Function CanMove(a As AnnotationInfo) As Boolean
+        Return a IsNot Nothing AndAlso (a.Kind = AnnotationKind.Comment OrElse a.Kind = AnnotationKind.Line OrElse
+                                        a.Kind = AnnotationKind.Note OrElse a.Kind = AnnotationKind.TextBox)
+    End Function
+
+    ''' <summary>Where an annotation sits on screen; for lines, the box around the two ends.</summary>
+    Public Shared Function MoveBounds(a As AnnotationInfo) As RectangleF
+        If a.Kind = AnnotationKind.Line Then
+            Return RectangleF.FromLTRB(Math.Min(a.LineStart.X, a.LineEnd.X), Math.Min(a.LineStart.Y, a.LineEnd.Y),
+                                       Math.Max(a.LineStart.X, a.LineEnd.X), Math.Max(a.LineStart.Y, a.LineEnd.Y))
+        End If
+        Return a.DisplayRect
+    End Function
+
+    ''' <summary>
+    ''' The offset actually used when moving by (<paramref name="dx"/>, <paramref name="dy"/>)
+    ''' display points: reduced so the annotation stays on its page.
+    ''' </summary>
+    Public Function ClampMove(a As AnnotationInfo, dx As Single, dy As Single) As SizeF
+        Dim geo = _pages(a.PageIndex).Geometry
+        Dim b = MoveBounds(a)
+        Dim x = Math.Max(0, Math.Min(b.X + dx, geo.DisplayWidth - b.Width))
+        Dim y = Math.Max(0, Math.Min(b.Y + dy, geo.DisplayHeight - b.Height))
+        Return New SizeF(CSng(x - b.X), CSng(y - b.Y))
+    End Function
+
+    ''' <summary>Moves a comment, line, sticky note or text box by an offset in display points.</summary>
+    Public Sub MoveAnnotation(annotation As AnnotationInfo, dx As Single, dy As Single)
+        If Not CanMove(annotation) Then Throw New InvalidOperationException("Only comments, lines, sticky notes and text boxes can be moved.")
+        Dim d = ClampMove(annotation, dx, dy)
+        If d.Width = 0 AndAlso d.Height = 0 Then Return
+        Edit(Sub(doc)
+                 Dim page = doc.Pages(annotation.PageIndex)
+                 Dim geo = GetGeometry(page)
+                 ' The display-to-PDF mapping is linear, so an offset maps like a point minus the origin.
+                 Dim o = geo.ToPdf(0, 0), m = geo.ToPdf(d.Width, d.Height)
+                 AnnotationWriter.Move(doc, FindAnnotation(page, annotation), m.X - o.X, m.Y - o.Y)
+             End Sub)
+    End Sub
+
     ''' <summary>Changes the text and colour of a note, text box or highlight.</summary>
     Public Sub UpdateAnnotation(annotation As AnnotationInfo, text As String, color As Color, Optional fontSize As Double = 0)
         If Not annotation.CanEdit Then Throw New InvalidOperationException("Tumbler can only edit its own kinds of comments.")

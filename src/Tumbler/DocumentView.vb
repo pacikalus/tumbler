@@ -25,6 +25,14 @@ Public Class AnnotationEventArgs
     Public Property Annotation As AnnotationInfo
 End Class
 
+''' <summary>A comment, line or note dragged to a new place, by an offset in display points.</summary>
+Public Class AnnotationMoveEventArgs
+    Inherits EventArgs
+
+    Public Property Annotation As AnnotationInfo
+    Public Property Offset As SizeF
+End Class
+
 ''' <summary>A right-click on the pages: the annotation under it (if any) and where it was.</summary>
 Public Class ViewMenuEventArgs
     Inherits EventArgs
@@ -70,6 +78,9 @@ Public Class DocumentView
     Private _panScroll As Point
     Private _dropIndex As Integer = -1
     Private _selected As AnnotationInfo
+    Private _moving As AnnotationInfo        ' being dragged to a new place
+    Private _moveStartClient As Point
+    Private _moveOffset As SizeF             ' display points, already kept on the page
 
     Public Event CurrentPageChanged As EventHandler
     Public Event ZoomChanged As EventHandler
@@ -79,6 +90,7 @@ Public Class DocumentView
     Public Event AnnotationActivated As EventHandler(Of AnnotationEventArgs)
     Public Event SelectedAnnotationChanged As EventHandler
     Public Event MenuRequested As EventHandler(Of ViewMenuEventArgs)
+    Public Event AnnotationMoveRequested As EventHandler(Of AnnotationMoveEventArgs)
     Public Event CopyRequested As EventHandler
     Public Event PasteRequested As EventHandler
     Public Event DeleteAnnotationRequested As EventHandler
@@ -364,9 +376,32 @@ Public Class DocumentView
         Next
 
         PaintOverlay(g)
-        PaintSelection(g)
+        If _moving IsNot Nothing Then PaintMovePreview(g) Else PaintSelection(g)
         PaintDropMarker(g)
         EvictCache(visible)
+    End Sub
+
+    ''' <summary>While dragging: a copy of the annotation, cut from the page image, at the new place.</summary>
+    Private Sub PaintMovePreview(g As Graphics)
+        Dim a = _moving
+        If a.PageIndex >= _pageRects.Count Then Return
+        Dim bounds = PdfEditor.MoveBounds(a)
+        Dim pad = CSng(Math.Max(2, a.LineWidth / 2 + 1))
+        bounds.Inflate(pad, pad)
+        Dim src = PageToClient(a.PageIndex, bounds)
+        Dim moved = bounds
+        moved.Offset(_moveOffset.Width, _moveOffset.Height)
+        Dim dest = PageToClient(a.PageIndex, moved)
+        Dim bmp = GetPageBitmap(a.PageIndex)
+        If bmp IsNot Nothing Then
+            Dim page = ClientPageRect(a.PageIndex)
+            Dim sx = bmp.Width / CSng(page.Width), sy = bmp.Height / CSng(page.Height)
+            Dim srcInBitmap As New RectangleF((src.X - page.X) * sx, (src.Y - page.Y) * sy, src.Width * sx, src.Height * sy)
+            g.DrawImage(bmp, dest, srcInBitmap, GraphicsUnit.Pixel)
+        End If
+        Using p As New Pen(Color.DodgerBlue, 1.5F) With {.DashStyle = Drawing2D.DashStyle.Dash}
+            g.DrawRectangle(p, dest.X, dest.Y, dest.Width, dest.Height)
+        End Using
     End Sub
 
     Private Sub PaintSelection(g As Graphics)
@@ -565,6 +600,25 @@ Public Class DocumentView
         End If
         If e.Button <> MouseButtons.Left Then Return
 
+        ' With any tool but Highlight, pressing on a comment, line or note picks it up:
+        ' drag to move it, click to select it, double-click to edit it.
+        If page >= 0 AndAlso _tool <> ToolMode.Highlight Then
+            Dim grab = AnnotationAt(page, pt)
+            If PdfEditor.CanMove(grab) Then
+                SelectedAnnotation = grab
+                SetCurrentPage(page)
+                If e.Clicks >= 2 Then
+                    RaiseEvent AnnotationActivated(Me, New AnnotationEventArgs With {.Annotation = grab})
+                    Return
+                End If
+                _moving = grab
+                _moveStartClient = e.Location
+                _moveOffset = SizeF.Empty
+                Capture = True
+                Return
+            End If
+        End If
+
         If _tool = ToolMode.Select Then
             Dim hit = If(page >= 0, AnnotationAt(page, pt), Nothing)
             ' One click selects (for copying or deleting); a double-click opens it for editing.
@@ -606,6 +660,14 @@ Public Class DocumentView
         MyBase.OnMouseMove(e)
         If _editor Is Nothing Then Return
 
+        If _moving IsNot Nothing Then
+            Dim ppp = PixelsPerPoint
+            _moveOffset = _editor.ClampMove(_moving, CSng((e.X - _moveStartClient.X) / ppp), CSng((e.Y - _moveStartClient.Y) / ppp))
+            Cursor = Cursors.SizeAll
+            Invalidate()
+            Return
+        End If
+
         If _panning Then
             AutoScrollPosition = New Point(Math.Max(0, _panScroll.X - (e.X - _panOrigin.X)),
                                            Math.Max(0, _panScroll.Y - (e.Y - _panOrigin.Y)))
@@ -625,18 +687,24 @@ Public Class DocumentView
             Return
         End If
 
+        If _tool <> ToolMode.Highlight AndAlso _tool <> ToolMode.Select Then
+            Dim page As Integer
+            Dim pt = ClientToPage(e.Location, page)
+            Cursor = If(page >= 0 AndAlso PdfEditor.CanMove(AnnotationAt(page, pt)), Cursors.SizeAll, Cursors.Default)
+        End If
+
         If _tool = ToolMode.Select Then
             Dim page As Integer
             Dim pt = ClientToPage(e.Location, page)
             Dim hit = If(page >= 0, AnnotationAt(page, pt), Nothing)
-            Cursor = If(hit IsNot Nothing, Cursors.Hand, Cursors.Default)
+            Cursor = If(PdfEditor.CanMove(hit), Cursors.SizeAll, If(hit IsNot Nothing, Cursors.Hand, Cursors.Default))
             If hit IsNot _tipAnnotation Then
                 _tipAnnotation = hit
                 If hit Is Nothing Then
                     _tip.Hide(Me)
                 Else
                     Dim text = If(String.IsNullOrWhiteSpace(hit.Contents), "(no text)", hit.Contents)
-                    _tip.Show($"{hit.KindName} by {If(hit.Author, "?")}" & vbCrLf & text & vbCrLf & "Click to select, double-click to edit, right-click to copy", Me, e.X + 16, e.Y + 16)
+                    _tip.Show($"{hit.KindName} by {If(hit.Author, "?")}" & vbCrLf & text & vbCrLf & "Drag to move, double-click to edit, right-click to copy", Me, e.X + 16, e.Y + 16)
                 End If
             End If
         End If
@@ -644,6 +712,17 @@ Public Class DocumentView
 
     Protected Overrides Sub OnMouseUp(e As MouseEventArgs)
         MyBase.OnMouseUp(e)
+        If _moving IsNot Nothing Then
+            Dim a = _moving, offset = _moveOffset
+            _moving = Nothing
+            Capture = False
+            Cursor = Cursors.Default
+            Invalidate()
+            If offset.Width <> 0 OrElse offset.Height <> 0 Then
+                RaiseEvent AnnotationMoveRequested(Me, New AnnotationMoveEventArgs With {.Annotation = a, .Offset = offset})
+            End If
+            Return
+        End If
         If _panning Then
             _panning = False
             Cursor = Cursors.Default
@@ -716,6 +795,7 @@ Public Class DocumentView
     End Function
 
     Private Sub CancelDrag()
+        _moving = Nothing
         _dragPage = -1
         _selAnchor = -1
         _selEnd = -1
