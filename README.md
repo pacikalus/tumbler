@@ -70,8 +70,8 @@ The version comes from `<Version>` in `src\Tumbler\Tumbler.vbproj` (see [Version
 At the end, Make Installer asks whether to publish the new version on GitHub. Say **Y** and it
 creates the release `v<version>` with the setup program attached, listing the commit titles since
 the previous release as "What's new". The first time, it installs the GitHub command-line tool and
-asks you to sign in to GitHub in the browser. To publish a setup you made earlier, run
-`tools\publish-release.ps1`.
+asks you to sign in to GitHub in the browser. To publish a setup you made earlier, double-click
+**Publish Release.bat** (or run `tools\publish-release.ps1`).
 
 Installed copies of Tumbler look for the newest release when they start (at most once a day) and
 from **Help > Check for updates**. When there is a newer version, Tumbler shows what's new and

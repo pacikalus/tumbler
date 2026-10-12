@@ -1,14 +1,17 @@
 # Publishes a Tumbler setup program on GitHub as release v<version>, which is
 # what installed copies of Tumbler look for when they check for updates.
 # Normally run by "Make Installer.bat"; can also be run on its own:
-#   .\tools\publish-release.ps1                      (newest setup in dist\)
+#   "Publish Release.bat"  or  .\tools\publish-release.ps1   (newest setup in dist\)
 #   .\tools\publish-release.ps1 -Version 1.4.2 -Setup dist\Tumbler-Setup-1.4.2.exe
 param(
     [string]$Version,
     [string]$Setup,
     [string]$Repo = 'pacikalus/tumbler'
 )
-$ErrorActionPreference = 'Stop'
+# Not 'Stop': Windows PowerShell treats anything gh prints to stderr (such as the
+# expected "release not found" when checking for an existing release) as a fatal
+# error. Each gh call's exit code is checked instead, and real problems throw.
+$ErrorActionPreference = 'Continue'
 $root = Split-Path $PSScriptRoot -Parent
 
 if (-not $Setup) {
