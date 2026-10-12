@@ -1,0 +1,13 @@
+#!/bin/sh
+# Raises Tumbler's minor version on every commit: 1.4.0 -> 1.5.0.
+# Turn it on once per clone with:  git config core.hooksPath .githooks
+proj="src/Tumbler/Tumbler.vbproj"
+[ -f "$proj" ] || exit 0
+current=$(sed -n 's:.*<Version>\([0-9]*\)\.\([0-9]*\)\.[0-9]*</Version>.*:\1.\2:p' "$proj" | head -n 1)
+[ -n "$current" ] || { echo "pre-commit: no <Version> in $proj" >&2; exit 1; }
+major=${current%%.*}
+minor=${current#*.}
+next="$major.$((minor + 1)).0"
+sed -i.bak "s:<Version>[0-9.]*</Version>:<Version>$next</Version>:" "$proj" && rm -f "$proj.bak"
+git add "$proj"
+echo "Tumbler version $next"
