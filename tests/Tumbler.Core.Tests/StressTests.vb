@@ -38,4 +38,46 @@ Public Class StressTests
         renderer.Dispose()
     End Sub
 
+    ''' <summary>
+    ''' Mimics background page drawing: several threads draw pages while the main thread
+    ''' makes edits, swaps in a new renderer and throws the old one away. Nothing may
+    ''' crash; a renderer used after it was thrown away only reports that.
+    ''' </summary>
+    <Fact>
+    Public Sub RenderingFromManyThreads_WhileRenderersAreReplaced()
+        Dim ed = PdfEditor.Open(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.pdf")))
+        Dim current As New PdfRenderer(ed.Bytes)
+        Dim unexpected As New Concurrent.ConcurrentQueue(Of Exception)
+        Dim done = False
+        Dim workers = Enumerable.Range(0, 3).Select(
+            Function(w) Threading.Tasks.Task.Run(
+                Sub()
+                    Dim n = 0
+                    Do Until Threading.Volatile.Read(done)
+                        Dim r = Threading.Volatile.Read(current)
+                        Try
+                            Dim img = r.Render(0, If(n Mod 2 = 0, 0.5, 1.2))
+                            Assert.True(img.Width > 0)
+                            r.GetCharacters(0)
+                        Catch ex As ObjectDisposedException
+                            ' the main thread replaced it meanwhile: fine
+                        Catch ex As Exception
+                            unexpected.Enqueue(ex)
+                        End Try
+                        n += 1
+                    Loop
+                End Sub)).ToArray()
+        For round = 1 To 15
+            ed.AddComment(0, New PointF(60 + round * 5, 300), "round " & round, Color.Gold, 11, "Pacikalus")
+            Dim old = current
+            Threading.Volatile.Write(current, New PdfRenderer(ed.Bytes))
+            old.Dispose()
+            Threading.Thread.Sleep(20)
+        Next
+        Threading.Volatile.Write(done, True)
+        Threading.Tasks.Task.WaitAll(workers)
+        current.Dispose()
+        Assert.Empty(unexpected)
+    End Sub
+
 End Class

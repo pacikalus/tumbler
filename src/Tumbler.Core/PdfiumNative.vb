@@ -12,6 +12,12 @@ Friend Module PdfiumNative
 
     Friend Const FPDF_ANNOT As Integer = &H1
 
+    ''' <summary>
+    ''' PDFium is not thread-safe: every call into it, from any thread, holds this lock.
+    ''' That lets pages be drawn in the background while the window stays responsive.
+    ''' </summary>
+    Friend ReadOnly Gate As New Object()
+
     <DllImport(PdfiumDll, CallingConvention:=CallingConvention.Cdecl)>
     Friend Function FPDF_LoadMemDocument(data As IntPtr, size As Integer, <MarshalAs(UnmanagedType.LPStr)> password As String) As IntPtr
     End Function
@@ -95,6 +101,12 @@ Friend Module PdfiumNative
     ''' if PDFium cannot read the file either.
     ''' </summary>
     Friend Function Rewrite(bytes As Byte(), password As String) As Byte()
+        SyncLock Gate
+            Return RewriteLocked(bytes, password)
+        End SyncLock
+    End Function
+
+    Private Function RewriteLocked(bytes As Byte(), password As String) As Byte()
         Dim init = Docnet.Core.DocLib.Instance   ' makes sure PDFium is initialised
         Dim data = Marshal.AllocHGlobal(Math.Max(1, bytes.Length))
         Dim fileWrite = IntPtr.Zero

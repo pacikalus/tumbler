@@ -7,7 +7,8 @@ Imports Docnet.Core.Readers
 ''' <summary>
 ''' Renders pages with PDFium, and extracts character positions through Docnet.Core.
 ''' One renderer belongs to one version of the document bytes; make a new one after an edit.
-''' Not thread-safe: use it from the UI thread.
+''' Safe to use from any thread: calls are taken one at a time, and a call made
+''' after (or while) the renderer is disposed throws ObjectDisposedException.
 ''' </summary>
 Public NotInheritable Class PdfRenderer
     Implements IDisposable
@@ -34,6 +35,12 @@ Public NotInheritable Class PdfRenderer
     ''' the page's /Annots), so the page can be drawn behind a comment being dragged.
     ''' </summary>
     Public Function Render(pageIndex As Integer, scale As Double, Optional hideAnnotIndex As Integer = -1) As RenderedPage
+        SyncLock PdfiumNative.Gate
+            Return RenderLocked(pageIndex, scale, hideAnnotIndex)
+        End SyncLock
+    End Function
+
+    Private Function RenderLocked(pageIndex As Integer, scale As Double, hideAnnotIndex As Integer) As RenderedPage
         If _disposed Then Throw New ObjectDisposedException(NameOf(PdfRenderer))
         EnsureNativeDocument()
         Dim page = PdfiumNative.FPDF_LoadPage(_nativeDoc, pageIndex)
@@ -94,6 +101,13 @@ Public NotInheritable Class PdfRenderer
 
     ''' <summary>Characters on a page in reading order, in display space (points).</summary>
     Public Function GetCharacters(pageIndex As Integer) As IReadOnlyList(Of TextChar)
+        SyncLock PdfiumNative.Gate
+            If _disposed Then Throw New ObjectDisposedException(NameOf(PdfRenderer))
+            Return GetCharactersLocked(pageIndex)
+        End SyncLock
+    End Function
+
+    Private Function GetCharactersLocked(pageIndex As Integer) As IReadOnlyList(Of TextChar)
         Dim cached As IReadOnlyList(Of TextChar) = Nothing
         If _chars.TryGetValue(pageIndex, cached) Then Return cached
 
@@ -133,6 +147,13 @@ Public NotInheritable Class PdfRenderer
     End Function
 
     Public Sub Dispose() Implements IDisposable.Dispose
+        ' Waits for a page being drawn on another thread to finish first.
+        SyncLock PdfiumNative.Gate
+            DisposeLocked()
+        End SyncLock
+    End Sub
+
+    Private Sub DisposeLocked()
         If _disposed Then Return
         _disposed = True
         For Each r In _readers.Values

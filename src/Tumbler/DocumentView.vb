@@ -90,7 +90,9 @@ Public Class DocumentView
     Private _zoom As Double = 1.0
     Private _tool As ToolMode = ToolMode.Select
     Private _pageRects As New List(Of Rectangle)
-    Private ReadOnly _cache As New Dictionary(Of Integer, Bitmap)
+    Private ReadOnly _cache As New Dictionary(Of Integer, CachedPage)
+    Private ReadOnly _queue As PageRenderQueue
+    Private _keepFrom As Integer = 0, _keepTo As Integer = -1   ' pages whose pictures are worth keeping
     Private _currentPage As Integer
     Private ReadOnly _tip As New ToolTip With {.InitialDelay = 300, .ReshowDelay = 100}
     Private _tipAnnotation As AnnotationInfo
@@ -135,6 +137,8 @@ Public Class DocumentView
     Public Event DeleteAnnotationRequested As EventHandler
 
     Public Sub New()
+        _queue = New PageRenderQueue(Me)
+        AddHandler _queue.Rendered, AddressOf OnPageRendered
         SetStyle(ControlStyles.OptimizedDoubleBuffer Or ControlStyles.AllPaintingInWmPaint Or
                  ControlStyles.UserPaint Or ControlStyles.ResizeRedraw Or ControlStyles.Selectable, True)
         AutoScroll = True
@@ -153,6 +157,7 @@ Public Class DocumentView
         Dim scroll = New Point(-AutoScrollPosition.X, -AutoScrollPosition.Y)
         _editor = editor
         _renderer = renderer
+        _queue.Reset()
         ClearCache()
         CancelDrag()
         If _editor Is Nothing Then
@@ -164,6 +169,9 @@ Public Class DocumentView
             If keepPosition Then
                 AutoScrollPosition = scroll
                 _currentPage = Math.Min(_currentPage, _editor.PageCount - 1)
+                ' After an edit, draw what's on screen straight away, so the change
+                ' never shows up late (a moved comment briefly at its old place).
+                RenderVisibleNow()
             Else
                 AutoScrollPosition = Point.Empty
                 _currentPage = 0
@@ -211,7 +219,8 @@ Public Class DocumentView
             Dim page = _currentPage
             Dim frac = PageScrollFraction(page)
             _zoom = value
-            ClearCache()
+            ' Old pictures stay up, stretched, until the sharp ones are drawn.
+            _queue.Reset()
             Layout_Pages()
             ScrollToPage(page, frac)
             Invalidate()
@@ -652,33 +661,92 @@ Public Class DocumentView
         End If
     End Sub
 
+    ''' <summary>A page picture and the scale it was drawn at.</summary>
+    Private NotInheritable Class CachedPage
+        Public Bitmap As Bitmap
+        Public Scale As Double
+        Public LowDetail As Boolean
+
+        Public Function IsSharp(wanted As Double) As Boolean
+            Return Not LowDetail AndAlso Math.Abs(Scale - wanted) < 0.0001
+        End Function
+    End Class
+
+    ''' <summary>
+    ''' The page's picture for painting. A sharp one at the current zoom when it's ready;
+    ''' otherwise whatever there is (an older zoom, or the quick rough version, stretched
+    ''' to fit) while the sharp one is drawn in the background. Nothing if the page has
+    ''' never been drawn; a rough version is asked for first then.
+    ''' </summary>
     Private Function GetPageBitmap(index As Integer) As Bitmap
-        Dim bmp As Bitmap = Nothing
-        If _cache.TryGetValue(index, bmp) Then Return bmp
-        Try
-            bmp = ImageUtil.ToBitmap(_renderer.Render(index, PixelsPerPoint))
-        Catch ex As Exception
-            Return Nothing   ' leave the page blank rather than failing the whole paint
-        End Try
-        _cache(index) = bmp
-        Return bmp
+        Dim scale = PixelsPerPoint
+        Dim cached As CachedPage = Nothing
+        If _cache.TryGetValue(index, cached) AndAlso cached.IsSharp(scale) Then Return cached.Bitmap
+        If cached Is Nothing Then _queue.Request(_renderer, index, RoughScale(scale), lowDetail:=True)
+        _queue.Request(_renderer, index, scale, lowDetail:=False)
+        Return cached?.Bitmap
     End Function
 
-    ''' <summary>Keeps bitmaps for visible pages and their neighbours; frees the rest.</summary>
-    Private Sub EvictCache(visible As List(Of Integer))
-        If visible.Count = 0 Then Return
-        Dim lo = visible.Min() - 2, hi = visible.Max() + 2
-        For Each key In _cache.Keys.ToList()
-            If key < lo OrElse key > hi Then
-                _cache(key).Dispose()
-                _cache.Remove(key)
-            End If
+    ''' <summary>The quick version: a quarter of the detail, about a sixteenth of the work.</summary>
+    Private Shared Function RoughScale(scale As Double) As Double
+        Return Math.Max(0.1, scale / 4)
+    End Function
+
+    ''' <summary>Draws the pages on screen right now, on this thread.</summary>
+    Private Sub RenderVisibleNow()
+        Dim scale = PixelsPerPoint
+        For i = 0 To _pageRects.Count - 1
+            If Not ClientPageRect(i).IntersectsWith(ClientRectangle) Then Continue For
+            Try
+                Store(i, New CachedPage With {.Bitmap = ImageUtil.ToBitmap(_renderer.Render(i, scale)), .Scale = scale})
+            Catch ex As Exception
+                ' leave the page blank rather than failing; the background will try again
+            End Try
         Next
     End Sub
 
+    Private Sub OnPageRendered(sender As Object, e As PageRenderQueue.RenderedEventArgs)
+        Dim scale = PixelsPerPoint
+        Dim cached As CachedPage = Nothing
+        _cache.TryGetValue(e.PageIndex, cached)
+        Dim wanted = e.PageIndex >= _keepFrom AndAlso e.PageIndex <= _keepTo AndAlso e.PageIndex < _pageRects.Count
+        If e.LowDetail Then
+            ' Only fills a page that has nothing at all yet.
+            wanted = wanted AndAlso cached Is Nothing
+        Else
+            wanted = wanted AndAlso Math.Abs(e.Scale - scale) < 0.0001 AndAlso (cached Is Nothing OrElse Not cached.IsSharp(scale))
+        End If
+        If Not wanted Then
+            e.Bitmap.Dispose()
+            Return
+        End If
+        Store(e.PageIndex, New CachedPage With {.Bitmap = e.Bitmap, .Scale = e.Scale, .LowDetail = e.LowDetail})
+        Invalidate(ClientPageRect(e.PageIndex))
+    End Sub
+
+    Private Sub Store(index As Integer, page As CachedPage)
+        Dim old As CachedPage = Nothing
+        If _cache.TryGetValue(index, old) AndAlso old.Bitmap IsNot page.Bitmap Then old.Bitmap.Dispose()
+        _cache(index) = page
+    End Sub
+
+    ''' <summary>Keeps pictures for visible pages and their neighbours; frees the rest and stops drawing them.</summary>
+    Private Sub EvictCache(visible As List(Of Integer))
+        If visible.Count = 0 Then Return
+        _keepFrom = visible.Min() - 2
+        _keepTo = visible.Max() + 2
+        For Each key In _cache.Keys.ToList()
+            If key < _keepFrom OrElse key > _keepTo Then
+                _cache(key).Bitmap.Dispose()
+                _cache.Remove(key)
+            End If
+        Next
+        _queue.Retain(_keepFrom, _keepTo)
+    End Sub
+
     Private Sub ClearCache()
-        For Each b In _cache.Values
-            b.Dispose()
+        For Each c In _cache.Values
+            c.Bitmap.Dispose()
         Next
         _cache.Clear()
     End Sub
@@ -1097,6 +1165,7 @@ Public Class DocumentView
 
     Protected Overrides Sub Dispose(disposing As Boolean)
         If disposing Then
+            _queue.Dispose()
             ClearCache()
             _tip.Dispose()
         End If
