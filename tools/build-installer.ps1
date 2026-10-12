@@ -1,6 +1,8 @@
 # Called by "Make Installer.bat". Builds Tumbler with .NET included (so the
 # people you give it to don't need to install anything else), signs it, wraps
 # it in a setup program with Inno Setup, signs that, and opens the dist folder.
+#   -Publish  publishes it on GitHub without asking.
+param([switch]$Publish)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 
@@ -65,7 +67,7 @@ try {
     # Publishing puts the setup on GitHub as release v<version>. Every installed
     # Tumbler checks for the newest release and offers to update itself.
     Write-Host ""
-    $answer = Read-Host "Publish Tumbler $version on GitHub so installed copies can update? (Y/N)"
+    $answer = if ($Publish) { 'Y' } else { Read-Host "Publish Tumbler $version on GitHub so installed copies can update? (Y/N)" }
     if ($answer -match '^[Yy]') {
         & (Join-Path $PSScriptRoot 'publish-release.ps1') -Version $version -Setup $setup
     } else {
