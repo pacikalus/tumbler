@@ -89,9 +89,10 @@ code-signing certificate. There are three levels:
 
 ## Versions
 
-Every commit raises the minor version by one (1.1.0, 1.2.0, 1.3.0 ...). The version lives in
+Every commit raises the patch version, the last number, by one (1.1.1, 1.1.2, 1.1.3 ...).
+For a bigger release, raise the middle number by hand. The version lives in
 `src/Tumbler/Tumbler.vbproj`, shows on the About page, and names the installer
-(`Tumbler-Setup-1.1.0.exe`). A git hook does the counting; turn it on once in each clone with:
+(`Tumbler-Setup-1.1.1.exe`). A git hook does the counting; turn it on once in each clone with:
 
 ```
 git config core.hooksPath .githooks
