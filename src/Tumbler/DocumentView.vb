@@ -559,12 +559,12 @@ Public Class DocumentView
                 End Using
             End If
             Dim fontSize = CSng(If(a.FontSize > 0, a.FontSize, 11))
-            ' Arial has Helvetica's letter widths, so the lines break where the PDF's will.
-            Using font As New Font("Arial", fontSize * ppp, GraphicsUnit.Pixel), brush As New SolidBrush(a.Color),
+            ' Arial Bold has Helvetica-Bold's letter widths, so the lines break where the PDF's will.
+            Using font As New Font("Arial", fontSize * ppp, FontStyle.Bold, GraphicsUnit.Pixel), brush As New SolidBrush(a.Color),
                   format = CType(StringFormat.GenericTypographic.Clone(), StringFormat)
                 format.FormatFlags = format.FormatFlags Or StringFormatFlags.NoWrap
                 Dim fam = font.FontFamily
-                Dim ascent = font.Size * fam.GetCellAscent(FontStyle.Regular) / fam.GetEmHeight(FontStyle.Regular)
+                Dim ascent = font.Size * fam.GetCellAscent(FontStyle.Bold) / fam.GetEmHeight(FontStyle.Bold)
                 Dim baseline = box.Y + (PdfEditor.TextPaddingPoints + fontSize * 0.8F) * ppp
                 Dim x = box.X + PdfEditor.TextPaddingPoints * ppp
                 Dim oldClip = g.Clip

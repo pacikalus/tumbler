@@ -15,17 +15,21 @@ Friend Module AnnotationWriter
     Private Const TextPadding As Double = 4
     Private Const LineSpacing As Double = 1.2
 
+    ' Name of the bold font in comment appearances and their /DA strings.
+    Private Const FontResource As String = "HeBo"
+
     Private ReadOnly Inv As CultureInfo = CultureInfo.InvariantCulture
 
-    ' Helvetica advance widths for WinAnsi codes 32..255, per 1000 em.
-    Private ReadOnly HelveticaWidths As Integer() = {
-        278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
-        1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556,
-        333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584, 0,
-        556, 0, 222, 556, 333, 1000, 556, 556, 333, 1000, 667, 333, 1000, 0, 611, 0, 0, 222, 222, 333, 333, 350, 556, 1000, 333, 1000, 500, 333, 944, 0, 500, 667,
-        278, 333, 556, 556, 556, 556, 260, 556, 333, 737, 370, 556, 584, 333, 737, 333, 400, 584, 333, 333, 333, 556, 537, 278, 333, 333, 365, 556, 834, 834, 834, 611,
-        667, 667, 667, 667, 667, 667, 1000, 722, 667, 667, 667, 667, 278, 278, 278, 278, 722, 722, 778, 778, 778, 778, 778, 584, 778, 722, 722, 722, 722, 667, 667, 611,
-        556, 556, 556, 556, 556, 556, 889, 500, 556, 556, 556, 556, 278, 278, 278, 278, 556, 556, 556, 556, 556, 556, 556, 584, 611, 556, 556, 556, 556, 500, 556, 500}
+    ' Comment and text box text is Helvetica-Bold. Its advance widths for WinAnsi
+    ' codes 32..255, per 1000 em (Arial Bold has the same ones).
+    Private ReadOnly BoldWidths As Integer() = {
+        278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611,
+        975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556,
+        333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584, 0,
+        556, 0, 278, 556, 500, 1000, 556, 556, 333, 1000, 667, 333, 1000, 0, 611, 0, 0, 278, 278, 500, 500, 350, 556, 1000, 333, 1000, 556, 333, 944, 0, 500, 667,
+        278, 333, 556, 556, 556, 556, 280, 556, 333, 737, 370, 556, 584, 333, 737, 333, 400, 584, 333, 333, 333, 611, 556, 278, 333, 333, 365, 556, 834, 834, 834, 611,
+        722, 722, 722, 722, 722, 722, 1000, 722, 667, 667, 667, 667, 278, 278, 278, 278, 722, 722, 778, 778, 778, 778, 778, 584, 778, 722, 722, 722, 722, 667, 667, 611,
+        556, 556, 556, 556, 556, 556, 889, 556, 556, 556, 556, 556, 278, 278, 278, 278, 611, 611, 611, 611, 611, 611, 611, 584, 611, 611, 611, 611, 611, 556, 611, 556}
 
     Private ReadOnly WinAnsi As Encoding = CreateWinAnsi()
 
@@ -411,7 +415,7 @@ Friend Module AnnotationWriter
         End If
         sb.AppendLine($"{N(1)} {N(1)} {N(width - 2)} {N(height - 2)} re W n")
         sb.AppendLine("BT")
-        sb.AppendLine($"/Helv {N(fontSize)} Tf {Rgb(color)} rg")
+        sb.AppendLine($"/{FontResource} {N(fontSize)} Tf {Rgb(color)} rg")
         Dim leading = fontSize * LineSpacing
         sb.AppendLine($"{N(leading)} TL")
         sb.AppendLine($"{N(TextPadding)} {N(height - TextPadding - fontSize * 0.8)} Td")
@@ -426,10 +430,10 @@ Friend Module AnnotationWriter
         Dim font As New PdfDictionary(doc)
         font.Elements.SetName("/Type", "/Font")
         font.Elements.SetName("/Subtype", "/Type1")
-        font.Elements.SetName("/BaseFont", "/Helvetica")
+        font.Elements.SetName("/BaseFont", "/Helvetica-Bold")
         font.Elements.SetName("/Encoding", "/WinAnsiEncoding")
         Dim fonts As New PdfDictionary(doc)
-        fonts.Elements("/Helv") = font
+        fonts.Elements("/" & FontResource) = font
         Dim res As New PdfDictionary(doc)
         res.Elements("/Font") = fonts
 
@@ -443,7 +447,7 @@ Friend Module AnnotationWriter
     Friend Function MeasureText(s As String, fontSize As Double) As Double
         Dim total = 0
         For Each b In WinAnsi.GetBytes(s)
-            If b >= 32 Then total += HelveticaWidths(b - 32)
+            If b >= 32 Then total += BoldWidths(b - 32)
         Next
         Return total * fontSize / 1000.0
     End Function
@@ -582,7 +586,7 @@ Friend Module AnnotationWriter
     End Function
 
     Private Function DefaultAppearance(color As Color, fontSize As Double) As String
-        Return $"/Helv {N(fontSize)} Tf {Rgb(color)} rg"
+        Return $"/{FontResource} {N(fontSize)} Tf {Rgb(color)} rg"
     End Function
 
     Private Function FromUnit(r As Double, g As Double, b As Double) As Color

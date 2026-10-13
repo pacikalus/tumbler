@@ -257,20 +257,7 @@ Public Class MainForm
             _docItems.Add(t.Item1)
         Next
 
-        For Each entry In Palette.Colors
-            Dim c = entry.Color
-            Dim mi As New ToolStripMenuItem(entry.Name, Palette.Swatch(c, 16))
-            AddHandler mi.Click, Sub() SetToolColor(c)
-            _tbColor.DropDownItems.Add(mi)
-        Next
-        _tbColor.DropDownItems.Add(New ToolStripSeparator())
-        Dim custom As New ToolStripMenuItem("More colours…")
-        AddHandler custom.Click, Sub()
-                                     Using dlg As New ColorDialog With {.Color = CurrentToolColor(), .FullOpen = True}
-                                         If dlg.ShowDialog(Me) = DialogResult.OK Then SetToolColor(dlg.Color)
-                                     End Using
-                                 End Sub
-        _tbColor.DropDownItems.Add(custom)
+        BuildColorMenu()
         _tbColor.ToolTipText = "Colour for new highlights, comments and lines"
         _tbColor.DisplayStyle = ToolStripItemDisplayStyle.Image
         _docItems.Add(_tbColor)
@@ -804,14 +791,40 @@ Public Class MainForm
         _view.HighlightColor = Color.FromArgb(_settings.HighlightColor)
         _view.LineColor = Color.FromArgb(_settings.LineColor)
         _view.LineWidth = _settings.LineWidth
+        BuildColorMenu()
         UpdateColorButton()
         UpdateWidthButton()
         UpdateHint()
     End Sub
 
+    ''' <summary>The colour choices for the current tool: deep shades for comments, bright ones otherwise.</summary>
+    Private Sub BuildColorMenu()
+        For Each old In _tbColor.DropDownItems.OfType(Of ToolStripMenuItem)().ToList()
+            old.Image?.Dispose()
+        Next
+        _tbColor.DropDownItems.Clear()
+        Dim tool = If(_view Is Nothing, ToolMode.Select, _view.Tool)
+        Dim kind = If(tool = ToolMode.Note, AnnotationKind.Comment,
+                      If(tool = ToolMode.Line, AnnotationKind.Line, AnnotationKind.Highlight))
+        For Each entry In Palette.ColorsFor(kind)
+            Dim c = entry.Color
+            Dim mi As New ToolStripMenuItem(entry.Name, Palette.Swatch(c, 16))
+            AddHandler mi.Click, Sub() SetToolColor(c)
+            _tbColor.DropDownItems.Add(mi)
+        Next
+        _tbColor.DropDownItems.Add(New ToolStripSeparator())
+        Dim custom As New ToolStripMenuItem("More colours…")
+        AddHandler custom.Click, Sub()
+                                     Using dlg As New ColorDialog With {.Color = CurrentToolColor(), .FullOpen = True}
+                                         If dlg.ShowDialog(Me) = DialogResult.OK Then SetToolColor(dlg.Color)
+                                     End Using
+                                 End Sub
+        _tbColor.DropDownItems.Add(custom)
+    End Sub
+
     Private Function CurrentToolColor() As Color
         Select Case _view.Tool
-            Case ToolMode.Note : Return Color.FromArgb(_settings.NoteColor)
+            Case ToolMode.Note : Return Palette.ToTextColor(Color.FromArgb(_settings.NoteColor))
             Case ToolMode.Line : Return Color.FromArgb(_settings.LineColor)
             Case Else : Return Color.FromArgb(_settings.HighlightColor)
         End Select
@@ -960,7 +973,8 @@ Public Class MainForm
     End Sub
 
     Private Sub OnNoteRequested(sender As Object, e As PageEventArgs)
-        Using dlg As New CommentDialog(AnnotationKind.Comment, True, "", Color.FromArgb(_settings.NoteColor), _settings.CommentFontSize, _settings.Author)
+        ' A bright colour saved by an older version becomes its deep text shade.
+        Using dlg As New CommentDialog(AnnotationKind.Comment, True, "", Palette.ToTextColor(Color.FromArgb(_settings.NoteColor)), _settings.CommentFontSize, _settings.Author)
             If dlg.ShowDialog(Me) <> DialogResult.OK OrElse String.IsNullOrWhiteSpace(dlg.CommentText) Then Return
             RememberColor(AnnotationKind.Note, dlg.SelectedColor)
             _settings.CommentFontSize = dlg.FontSizeValue

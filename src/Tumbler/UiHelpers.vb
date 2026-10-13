@@ -16,8 +16,36 @@ Public Module Palette
         ("Purple", Color.FromArgb(149, 117, 205)),
         ("Black", Color.FromArgb(33, 33, 33))}
 
+    ''' <summary>Deeper shades of the same colours for comment and text box text, so it reads well on white.</summary>
+    Public ReadOnly TextColors As (Name As String, Color As Color)() = {
+        ("Yellow", Color.FromArgb(166, 120, 0)),
+        ("Green", Color.FromArgb(27, 112, 38)),
+        ("Blue", Color.FromArgb(13, 71, 161)),
+        ("Pink", Color.FromArgb(173, 20, 87)),
+        ("Orange", Color.FromArgb(191, 72, 0)),
+        ("Red", Color.FromArgb(170, 22, 22)),
+        ("Purple", Color.FromArgb(74, 20, 140)),
+        ("Black", Color.FromArgb(0, 0, 0))}
+
     Public Function ColorByName(name As String) As Color
         Return Colors.First(Function(c) c.Name = name).Color
+    End Function
+
+    ''' <summary>The colours to offer for an annotation kind: deep ones for text, bright ones for highlights and lines.</summary>
+    Public Function ColorsFor(kind As AnnotationKind) As (Name As String, Color As Color)()
+        Return If(IsTextKind(kind), TextColors, Colors)
+    End Function
+
+    Public Function IsTextKind(kind As AnnotationKind) As Boolean
+        Return kind = AnnotationKind.Comment OrElse kind = AnnotationKind.TextBox OrElse kind = AnnotationKind.Note
+    End Function
+
+    ''' <summary>One of the bright colours becomes its deep text shade; any other colour is kept.</summary>
+    Public Function ToTextColor(c As Color) As Color
+        For i = 0 To Colors.Length - 1
+            If Colors(i).Color.ToArgb() = c.ToArgb() Then Return TextColors(i).Color
+        Next
+        Return c
     End Function
 
     ''' <summary>A small square image filled with a colour, for menus and lists.</summary>
@@ -96,7 +124,7 @@ Public Class AppSettings
     Public Property Author As String = Environment.UserName
     Public Property LastFolder As String = ""
     Public Property HighlightColor As Integer = Palette.ColorByName("Yellow").ToArgb()
-    Public Property NoteColor As Integer = Palette.ColorByName("Yellow").ToArgb()
+    Public Property NoteColor As Integer = Palette.TextColors.First(Function(c) c.Name = "Red").Color.ToArgb()
     Public Property TextBoxColor As Integer = Palette.ColorByName("Red").ToArgb()
     Public Property TextBoxFontSize As Double = 12
     Public Property CommentFontSize As Double = 11

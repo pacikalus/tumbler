@@ -734,6 +734,25 @@ Public Class EditorTests
     End Function
 
     ''' <summary>Writes a PNG when TUMBLER_DUMP names a folder, for eyeballing renders.</summary>
+    ''' <summary>Comment text is written in Helvetica-Bold, in the appearance and in /DA.</summary>
+    <Fact>
+    Public Sub Comment_IsBold()
+        Dim ed = OpenSample()
+        ed.AddComment(0, New PointF(100, 400), "Bold words here", Color.FromArgb(13, 71, 161), 14, "Pacikalus")
+        Dim raw = Text.Encoding.Latin1.GetString(ed.Bytes)
+        Assert.Contains("/DA(/HeBo 14 Tf", raw.Replace(" (", "("))
+        Using r As New PdfRenderer(ed.Bytes)
+            Dump(r.Render(0, 2), "bold-comment")
+        End Using
+        Using doc = PdfSharp.Pdf.IO.PdfReader.Open(New MemoryStream(ed.Bytes), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import)
+            Dim annots = doc.Pages(0).Elements.GetArray("/Annots")
+            Dim annot = CType(CType(annots.Elements(annots.Elements.Count - 1), PdfSharp.Pdf.Advanced.PdfReference).Value, PdfSharp.Pdf.PdfDictionary)
+            Dim ap = annot.Elements.GetDictionary("/AP").Elements.GetDictionary("/N")
+            Dim font = ap.Elements.GetDictionary("/Resources").Elements.GetDictionary("/Font").Elements.GetDictionary("/HeBo")
+            Assert.Equal("/Helvetica-Bold", font.Elements.GetName("/BaseFont"))
+        End Using
+    End Sub
+
     Private Shared Sub Dump(img As RenderedPage, name As String)
         Dim folder = Environment.GetEnvironmentVariable("TUMBLER_DUMP")
         If String.IsNullOrEmpty(folder) Then Return

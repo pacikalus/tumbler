@@ -75,7 +75,7 @@ Public Class CommentDialog
         Body.Controls.Add(_text)
 
         Body.Controls.Add(MakeLabel("Colour:"))
-        For Each entry In Palette.Colors
+        For Each entry In Palette.ColorsFor(kind)
             Dim swatch As New Button With {
                 .Width = 30, .Height = 30, .BackColor = entry.Color, .FlatStyle = FlatStyle.Flat,
                 .Tag = entry.Color, .Margin = New Padding(0, 0, 6, 0)}
