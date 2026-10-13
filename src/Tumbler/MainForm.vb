@@ -87,6 +87,7 @@ Public Class MainForm
         AddHandler _view.DeleteAnnotationRequested, Sub() DeleteSelectedAnnotation()
         AddHandler _thumbs.PageClicked, Sub() _view.ScrollToPage(_thumbs.CurrentPage)
         AddHandler _thumbs.DeleteRequested, Sub() DeleteSelectedPages()
+        AddHandler _thumbs.PagesMoveRequested, AddressOf OnPagesMoveRequested
         AddHandler _thumbs.SelectionChanged, Sub() UpdateHint()
 
         For Each target In New Control() {Me, _view, _thumbs, _comments, _outerSplit, _innerSplit,
@@ -744,6 +745,16 @@ Public Class MainForm
         If MessageBox.Show(Me, $"Delete {names}?", "Delete pages", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) <> DialogResult.OK Then Return
         _thumbs.ClearSelection()
         RunEdit(Sub() _editor.DeletePages(pages))
+    End Sub
+
+    ''' <summary>Pages dragged to a new place in the page strip.</summary>
+    Private Sub OnPagesMoveRequested(sender As Object, e As PagesMoveEventArgs)
+        If _editor Is Nothing Then Return
+        Dim landed As List(Of Integer) = Nothing
+        RunEdit(Sub() landed = _editor.MovePages(e.Pages, e.InsertAt))
+        If landed Is Nothing OrElse landed.Count = 0 Then Return
+        _thumbs.SelectPages(landed)
+        _view.ScrollToPage(landed(0))
     End Sub
 
     Private Shared Function DescribePages(pages As List(Of Integer)) As String

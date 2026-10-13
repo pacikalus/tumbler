@@ -16,6 +16,7 @@ VB.NET, WinForms, .NET 8.
 |---|---|
 | View PDFs | File > Open, drag a file onto the window, or `Tumbler.exe file.pdf`. Scroll, Ctrl+wheel to zoom, drag the page to pan. |
 | Delete pages | Select pages in the left strip (Ctrl+click / Shift+click / Ctrl+A), then **Delete pages** or the Delete key. |
+| Reorder pages | In the left strip, drag a page up or down; a blue line shows where it will go, and the strip scrolls when you reach the top or bottom edge. To move several pages at once, select them first (Ctrl+click / Shift+click) and drag any of them. Esc cancels. Undo puts them back. |
 | Rotate one page or all | **↺ Rotate / ↻ Rotate** act on the selected pages (or the current page). **Rotate all** turns every page. |
 | Multicolour comments | **Comment** tool: click on the page and type. The comment appears right there as plain text in the colour you pick, with no box. |
 | Draw lines | **Line** tool: drag from one end to the other. Hold Shift to keep it straight across, straight down or at 45°. **Colour** and **Thickness** (1, 2, 4 or 8 pt) apply to new lines. |

@@ -92,6 +92,47 @@ Public Class EditorTests
         Assert.True(ed.IsDirty)
     End Sub
 
+    <Theory>
+    <InlineData("3", 0, "3,1,2,4,5")>
+    <InlineData("1", 5, "2,3,4,5,1")>
+    <InlineData("1", 3, "2,3,1,4,5")>
+    <InlineData("2,4", 0, "2,4,1,3,5")>
+    <InlineData("2,4", 5, "1,3,5,2,4")>
+    <InlineData("2,4", 3, "1,3,2,4,5")>
+    <InlineData("2", 1, "1,2,3,4,5")>
+    <InlineData("2", 2, "1,2,3,4,5")>
+    Public Sub NewPageOrder_PutsPagesInTheGap(pages As String, insertAt As Integer, expected As String)
+        Dim moved = pages.Split(","c).Select(Function(x) CInt(x) - 1)
+        Dim order = PdfEditor.NewPageOrder(5, moved, insertAt)
+        Assert.Equal(expected, String.Join(",", order.Select(Function(i) i + 1)))
+    End Sub
+
+    <Fact>
+    Public Sub MovePages_ReordersTheFile()
+        Dim ed = OpenSample()
+        Dim landed = ed.MovePages({1, 3}, 5)
+        Assert.Equal("3,4", String.Join(",", landed))
+        Assert.Equal(5, ed.PageCount)
+        Using r As New PdfRenderer(ed.Bytes)
+            Dim expected = {"page 1", "page 3", "page 5", "page 2", "page 4"}
+            For i = 0 To 4
+                Assert.Contains(expected(i), PageText(r, i))
+            Next
+        End Using
+        ed.Undo()
+        Using r As New PdfRenderer(ed.Bytes)
+            Assert.Contains("page 2", PageText(r, 1))
+        End Using
+    End Sub
+
+    <Fact>
+    Public Sub MovePages_ToTheSamePlace_ChangesNothing()
+        Dim ed = OpenSample()
+        Assert.Equal("2", String.Join(",", ed.MovePages({2}, 3)))
+        Assert.False(ed.IsDirty)
+        Assert.False(ed.CanUndo)
+    End Sub
+
     <Fact>
     Public Sub DeletePages_RefusesToDeleteEverything()
         Dim ed = OpenSample()

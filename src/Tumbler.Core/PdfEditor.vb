@@ -280,6 +280,40 @@ Public NotInheritable Class PdfEditor
              End Sub)
     End Sub
 
+    ''' <summary>
+    ''' Moves pages to a new place, keeping their order. <paramref name="insertAt"/> is the
+    ''' gap before that page in the current order (PageCount = after the last page).
+    ''' Returns where the moved pages ended up; nothing changes if they are already there.
+    ''' </summary>
+    Public Function MovePages(pageIndexes As IEnumerable(Of Integer), insertAt As Integer) As List(Of Integer)
+        Dim order = NewPageOrder(PageCount, pageIndexes, insertAt)
+        Dim moved = pageIndexes.Distinct().Where(Function(i) i >= 0 AndAlso i < PageCount).ToList()
+        Dim result = moved.Select(Function(p) order.IndexOf(p)).OrderBy(Function(i) i).ToList()
+        If order.SequenceEqual(Enumerable.Range(0, PageCount)) Then Return result
+        Edit(Sub(doc)
+                 ' Move one page at a time into its new slot, tracking where the rest went.
+                 Dim current = Enumerable.Range(0, doc.PageCount).ToList()
+                 For i = 0 To order.Count - 1
+                     Dim at = current.IndexOf(order(i))
+                     If at = i Then Continue For
+                     doc.Pages.MovePage(at, i)
+                     current.RemoveAt(at)
+                     current.Insert(i, order(i))
+                 Next
+             End Sub)
+        Return result
+    End Function
+
+    ''' <summary>The page order after moving some pages to the gap before <paramref name="insertAt"/>.</summary>
+    Public Shared Function NewPageOrder(pageCount As Integer, pageIndexes As IEnumerable(Of Integer), insertAt As Integer) As List(Of Integer)
+        Dim moved = New SortedSet(Of Integer)(pageIndexes.Where(Function(i) i >= 0 AndAlso i < pageCount))
+        insertAt = Math.Max(0, Math.Min(insertAt, pageCount))
+        Dim rest = Enumerable.Range(0, pageCount).Where(Function(i) Not moved.Contains(i)).ToList()
+        Dim position = insertAt - moved.Where(Function(i) i < insertAt).Count()
+        rest.InsertRange(position, moved)
+        Return rest
+    End Function
+
     Public Sub RotateAllPages(degrees As Integer)
         RotatePages(Enumerable.Range(0, PageCount), degrees)
     End Sub
